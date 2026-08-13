@@ -1,3 +1,5 @@
-"""ORM models. Domain models (Research, etc.) arrive in a later task."""
+"""ORM models registered on Base.metadata (Alembic autogenerate target)."""
 
-__all__: list[str] = []
+from app.models.research import Research, ResearchStatus
+
+__all__ = ["Research", "ResearchStatus"]
