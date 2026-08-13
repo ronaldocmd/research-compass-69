@@ -12,5 +12,10 @@ class HealthService:
         self.repository = HealthRepository(db)
 
     def check(self) -> HealthResponse:
-        database = "up" if self.repository.ping() else "down"
-        return HealthResponse(status="ok", database=database, version=settings.VERSION)
+        database_up = self.repository.ping()
+        return HealthResponse(
+            status="ok" if database_up else "degraded",
+            database="up" if database_up else "down",
+            version=settings.VERSION,
+            environment=settings.ENVIRONMENT,
+        )
