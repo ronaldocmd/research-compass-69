@@ -26,13 +26,13 @@ def test_api_v1_health_reports_database_up(client: TestClient) -> None:
     }
 
 
-def test_api_v1_health_reports_database_down(client: TestClient, monkeypatch) -> None:
-    def broken_execute(self, *args, **kwargs):
-        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+def test_repository_swallows_database_errors(monkeypatch) -> None:
+    class BrokenSession:
+        def execute(self, *args, **kwargs):
+            raise OperationalError("SELECT 1", {}, Exception("connection refused"))
 
-    monkeypatch.setattr(HealthRepository, "ping", lambda self: broken_execute(self))
-    response = client.get(f"{settings.API_V1_PREFIX}/health")
-    assert response.status_code == 500
+    assert HealthRepository(BrokenSession()).ping() is False
+
 
 
 def test_api_v1_health_degraded_when_ping_fails(client: TestClient, monkeypatch) -> None:
