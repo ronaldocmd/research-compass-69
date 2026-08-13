@@ -65,12 +65,20 @@ cd frontend
 npm install && npm run dev
 ```
 
-## Migrations
+## Migrations (RDA-004)
+
+`DATABASE_URL` vem sempre do ambiente; o Alembic lê `app.core.config.settings` e usa
+`app.db.base.Base.metadata` como target de autogenerate. A revisão inicial
+`0001_baseline` é vazia de propósito: apenas cria a tabela `alembic_version` (a tabela
+de Research chega em RDA-005). Detalhes em `docs/RDA-004-database.md`.
 
 ```bash
-docker compose exec backend alembic revision --autogenerate -m "message"
 docker compose exec backend alembic upgrade head
+docker compose exec backend alembic current   # -> 0001_baseline (head)
+docker compose exec backend alembic heads
+docker compose exec backend alembic revision --autogenerate -m "message"
 ```
+
 
 ## Tests
 
