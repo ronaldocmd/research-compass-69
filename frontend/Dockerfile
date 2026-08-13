@@ -15,8 +15,6 @@ RUN npm install
 
 COPY . .
 
-USER node
-
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
