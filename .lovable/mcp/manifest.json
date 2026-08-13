@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.2",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "research-foundation",
+      "version": "0.1.0",
+      "title": "Research Foundation"
+    },
+    "tools": [
+      {
+        "name": "get_project_stack",
+        "title": "Get project stack",
+        "description": "Describe the Research Discovery Agent architecture: backend, frontend, database, Docker services, health endpoints and current scope boundaries.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_rda_tickets",
+        "title": "List RDA tickets",
+        "description": "List the delivered Research Discovery Agent (RDA) Sprint 1 tickets with their documentation files.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_rda_doc",
+        "title": "Get RDA ticket documentation",
+        "description": "Return the full markdown documentation for one RDA ticket, e.g. 'RDA-004' or 'RDA-005-research-model'.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "ticket": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Ticket id or documentation file name, e.g. RDA-004."
+            }
+          },
+          "required": [
+            "ticket"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_run_instructions",
+        "title": "Get local run instructions",
+        "description": "Return the commands and local URLs needed to run the Research Discovery Agent stack with Docker Compose.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
