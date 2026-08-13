@@ -11,6 +11,11 @@ export default defineTool({
   inputSchema: {
     ticket: z.string().min(1).describe("Ticket id or documentation file name, e.g. RDA-004."),
   },
+  outputSchema: {
+    id: z.string(),
+    title: z.string(),
+    file: z.string(),
+  },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: ({ ticket }) => {
     const doc = findDoc(ticket);

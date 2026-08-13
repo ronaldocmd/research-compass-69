@@ -1,4 +1,5 @@
 import { defineTool } from "@lovable.dev/mcp-js";
+import { z } from "zod";
 
 const instructions = {
   steps: [
@@ -26,6 +27,11 @@ export default defineTool({
   description:
     "Return the commands and local URLs needed to run the Research Discovery Agent stack with Docker Compose.",
   inputSchema: {},
+  outputSchema: {
+    steps: z.array(z.string()),
+    urls: z.unknown(),
+    notes: z.array(z.string()),
+  },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: () => ({
     content: [{ type: "text" as const, text: JSON.stringify(instructions, null, 2) }],

@@ -1,4 +1,5 @@
 import { defineTool } from "@lovable.dev/mcp-js";
+import { z } from "zod";
 
 const stack = {
   project: "Research Discovery Agent (RDA)",
@@ -42,6 +43,16 @@ export default defineTool({
   description:
     "Describe the Research Discovery Agent architecture: backend, frontend, database, Docker services, health endpoints and current scope boundaries.",
   inputSchema: {},
+  outputSchema: {
+    project: z.string(),
+    sprint: z.string(),
+    backend: z.unknown(),
+    frontend: z.unknown(),
+    database: z.unknown(),
+    orchestration: z.unknown(),
+    domainModel: z.unknown(),
+    notImplementedYet: z.array(z.string()),
+  },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: () => ({
     content: [{ type: "text" as const, text: JSON.stringify(stack, null, 2) }],
