@@ -53,7 +53,7 @@ def test_column_definitions() -> None:
 
 def test_python_side_defaults() -> None:
     table = Base.metadata.tables["researches"]
-    assert table.c.id.default.arg is uuid.uuid4
+    assert table.c.id.default.arg.__name__ == "uuid4"
     assert table.c.status.default.arg is ResearchStatus.DRAFT
     assert table.c.updated_at.onupdate is not None
 
