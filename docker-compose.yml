@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rda-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rda}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rda}
+      POSTGRES_DB: ${POSTGRES_DB:-rda}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rda} -d ${POSTGRES_DB:-rda}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: rda-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rda}:${POSTGRES_PASSWORD:-rda}@postgres:5432/${POSTGRES_DB:-rda}
+      BACKEND_CORS_ORIGINS: http://localhost:3000
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: rda-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_INTERNAL_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
