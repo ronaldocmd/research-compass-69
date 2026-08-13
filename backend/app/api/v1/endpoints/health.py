@@ -8,7 +8,7 @@ from app.services.health_service import HealthService
 router = APIRouter()
 
 
-@router.get("", response_model=HealthResponse)
+@router.get("", response_model=HealthResponse, summary="Health check (database aware)")
 def read_health(db: Session = Depends(get_db)) -> HealthResponse:
     """API -> Service -> Repository -> Database."""
     return HealthService(db).check()
