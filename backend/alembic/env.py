@@ -1,3 +1,11 @@
+"""Alembic environment.
+
+The database URL comes exclusively from the application settings
+(`DATABASE_URL` environment variable) — never hard-coded in alembic.ini.
+`Base.metadata` is the autogenerate target; models are registered through
+`app/models/__init__.py`, imported by `app/db/base.py`.
+"""
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -7,7 +15,9 @@ from app.core.config import settings
 from app.db.base import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+# '%' must be escaped: alembic.ini values go through configparser interpolation.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -21,6 +31,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
+        compare_server_default=True,
         dialect_opts={"paramstyle": "named"},
     )
     with context.begin_transaction():
@@ -34,7 +45,12 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 
