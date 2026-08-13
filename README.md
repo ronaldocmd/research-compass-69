@@ -23,10 +23,10 @@ docker-compose.yml
 .env.example
 ```
 
-## Run
+## Run with Docker (RDA-002)
 
 ```bash
-cp .env.example .env
+cp .env.example .env   # ajuste POSTGRES_PASSWORD; .env nunca é comitado
 docker compose up --build
 ```
 
@@ -34,6 +34,22 @@ docker compose up --build
 - API docs: http://localhost:8000/docs
 - Liveness: http://localhost:8000/health
 - DB-aware health: http://localhost:8000/api/v1/health
+- PostgreSQL: localhost:5432 (dentro da rede `rda-net`: host `postgres`)
+
+Infra de containers:
+
+- Rede interna `rda-net` (bridge) conecta `postgres`, `backend` e `frontend`.
+- Volume nomeado `postgres_data` persiste os dados do PostgreSQL 16.
+- Healthchecks: `pg_isready` (postgres), `/health` (backend), `/` (frontend).
+- Ordem de inicialização: `postgres` (healthy) -> `backend` (healthy) -> `frontend`.
+- Sem credenciais hard-coded: todas as variáveis vêm de `.env` (`DATABASE_URL` no
+  backend, `NEXT_PUBLIC_API_URL` / `API_INTERNAL_URL` no frontend). Portas
+  configuráveis via `POSTGRES_PORT`, `BACKEND_PORT`, `FRONTEND_PORT`.
+
+> Nota sobre o preview do Lovable: o preview roda apenas a página web embutida
+> (Vite/TanStack). Não há Docker daemon, Python nem Next.js server nesse ambiente,
+> portanto `docker compose up` e os endpoints acima só funcionam localmente/CI.
+
 
 ## Run without Docker
 

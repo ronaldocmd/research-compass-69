@@ -2,48 +2,65 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: rda-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-rda}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rda}
-      POSTGRES_DB: ${POSTGRES_DB:-rda}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rda-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rda} -d ${POSTGRES_DB:-rda}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     container_name: rda-backend
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rda}:${POSTGRES_PASSWORD:-rda}@postgres:5432/${POSTGRES_DB:-rda}
-      BACKEND_CORS_ORIGINS: http://localhost:3000
-      ENVIRONMENT: development
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
+    networks:
+      - rda-net
     depends_on:
       postgres:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
     container_name: rda-frontend
+    restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      API_INTERNAL_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    networks:
+      - rda-net
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+
+networks:
+  rda-net:
+    driver: bridge
 
 volumes:
   postgres_data:
