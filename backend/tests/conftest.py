@@ -45,7 +45,11 @@ def pg_client() -> Generator[TestClient, None, None]:
         pytest.skip("TEST_DATABASE_URL not set: PostgreSQL integration tests skipped")
 
     engine = create_engine(url, future=True)
+    # Idempotent: the schema normally comes from `alembic upgrade head`, but
+    # other tests may drop `researches`, so ensure it exists here.
+    Base.metadata.create_all(engine, tables=[Base.metadata.tables["researches"]], checkfirst=True)
     PgSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
 
     def override_pg_db() -> Generator[Session, None, None]:
         db = PgSessionLocal()
