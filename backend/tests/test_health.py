@@ -50,6 +50,13 @@ def test_cors_headers_present(client: TestClient) -> None:
     assert response.headers["access-control-allow-origin"] == origin
 
 
-def test_openapi_exposes_only_health_routes(client: TestClient) -> None:
+def test_openapi_exposes_health_and_research_routes(client: TestClient) -> None:
+    """Scope guard: only health (RDA-003) and Research (RDA-006) are exposed."""
     paths = client.get("/openapi.json").json()["paths"]
-    assert set(paths) == {"/health", f"{settings.API_V1_PREFIX}/health"}
+    assert set(paths) == {
+        "/health",
+        f"{settings.API_V1_PREFIX}/health",
+        f"{settings.API_V1_PREFIX}/researches",
+        f"{settings.API_V1_PREFIX}/researches/{{research_id}}",
+    }
+
