@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { getBackendHealth } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,13 @@ export default async function HomePage() {
         PostgreSQL via SQLAlchemy + Alembic.
       </p>
       <p>
-        Backend status: <code>{health ? `${health.status} / db: ${health.database}` : "unreachable"}</code>
+        Backend status:{" "}
+        <code>{health ? `${health.status} / db: ${health.database}` : "unreachable"}</code>
+      </p>
+      <p>
+        <Link href="/researches" className="btn primary">
+          Abrir pesquisas
+        </Link>
       </p>
     </main>
   );
