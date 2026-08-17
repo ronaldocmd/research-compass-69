@@ -3,6 +3,8 @@ export type ResearchStatus = "DRAFT" | "READY";
 export const RESEARCH_STATUSES: ResearchStatus[] = ["DRAFT", "READY"];
 
 export const TITLE_MAX_LENGTH = 200;
+export const OBJECTIVE_MAX_LENGTH = 5000;
+export const QUESTION_MAX_LENGTH = 2000;
 
 /** Mirrors backend ResearchResponse (app/schemas/research.py). */
 export interface Research {
