@@ -14,8 +14,8 @@ class ResearchCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     title: str = Field(min_length=1, max_length=200)
-    objective: str = Field(min_length=1)
-    question: str = Field(min_length=1)
+    objective: str = Field(min_length=1, max_length=5000)
+    question: str = Field(min_length=1, max_length=2000)
     status: ResearchStatus = ResearchStatus.DRAFT
 
 
@@ -25,8 +25,8 @@ class ResearchUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
-    objective: str | None = Field(default=None, min_length=1)
-    question: str | None = Field(default=None, min_length=1)
+    objective: str | None = Field(default=None, min_length=1, max_length=5000)
+    question: str | None = Field(default=None, min_length=1, max_length=2000)
     status: ResearchStatus | None = None
 
 
