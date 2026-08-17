@@ -127,6 +127,26 @@ describe("validate", () => {
     expect(errors.title).toContain("200");
   });
 
+  it("rejects objectives longer than 5000 characters", () => {
+    const errors = validate({ title: "t", objective: "a".repeat(5001), question: "q" });
+    expect(errors.objective).toContain("5000");
+  });
+
+  it("rejects questions longer than 2000 characters", () => {
+    const errors = validate({ title: "t", objective: "o", question: "a".repeat(2001) });
+    expect(errors.question).toContain("2000");
+  });
+
+  it("accepts valid boundary lengths", () => {
+    expect(
+      validate({
+        title: "t".repeat(200),
+        objective: "o".repeat(5000),
+        question: "q".repeat(2000),
+      }),
+    ).toEqual({});
+  });
+
   it("accepts a valid payload", () => {
     expect(validate({ title: "ok", objective: "o", question: "q" })).toEqual({});
   });
