@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import type { FormState } from "@/lib/research-actions";
-import { RESEARCH_STATUSES, TITLE_MAX_LENGTH } from "@/types/research";
+import { RESEARCH_STATUSES, OBJECTIVE_MAX_LENGTH, QUESTION_MAX_LENGTH, TITLE_MAX_LENGTH } from "@/types/research";
 import type { Research } from "@/types/research";
 
 interface Props {
@@ -41,13 +41,27 @@ export function ResearchForm({ action, research, submitLabel, cancelHref }: Prop
 
       <label className="field">
         <span>Objetivo</span>
-        <textarea name="objective" rows={4} defaultValue={values?.objective ?? ""} required />
+        <textarea
+          name="objective"
+          rows={4}
+          defaultValue={values?.objective ?? ""}
+          maxLength={OBJECTIVE_MAX_LENGTH}
+          required
+          aria-invalid={Boolean(fieldErrors.objective)}
+        />
         {fieldErrors.objective ? <small className="error">{fieldErrors.objective}</small> : null}
       </label>
 
       <label className="field">
         <span>Pergunta de pesquisa</span>
-        <textarea name="question" rows={3} defaultValue={values?.question ?? ""} required />
+        <textarea
+          name="question"
+          rows={3}
+          defaultValue={values?.question ?? ""}
+          maxLength={QUESTION_MAX_LENGTH}
+          required
+          aria-invalid={Boolean(fieldErrors.question)}
+        />
         {fieldErrors.question ? <small className="error">{fieldErrors.question}</small> : null}
       </label>
 
