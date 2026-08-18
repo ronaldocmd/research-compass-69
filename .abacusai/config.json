@@ -3,7 +3,9 @@
     "allow": [
       "Bash(mkdir *)",
       "Bash(python.exe *)",
-      "Bash(.\\.venvScriptspython.exe *)"
+      "Bash(.\\.venvScriptspython.exe *)",
+      "Bash(Get-Content *)",
+      "Bash($env:TEST_DATABASE_URL *)"
     ]
   }
 }

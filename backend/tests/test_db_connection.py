@@ -26,8 +26,8 @@ def test_engine_is_lazy_and_cached() -> None:
 
 
 def test_declarative_base_metadata_is_available() -> None:
-    # RDA-005 stage: the Research table is the only registered domain table.
-    assert set(Base.metadata.tables) == {"researches"}
+    # RDA-017 stage: Research and Document are the registered domain tables.
+    assert set(Base.metadata.tables) == {"researches", "documents"}
 
 
 def test_repository_ping_uses_a_real_session() -> None:

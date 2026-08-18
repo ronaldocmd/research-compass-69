@@ -47,8 +47,13 @@ def pg_client() -> Generator[TestClient, None, None]:
 
     engine = create_engine(url, future=True)
     # Idempotent: the schema normally comes from `alembic upgrade head`, but
-    # other tests may drop `researches`, so ensure it exists here.
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables["researches"]], checkfirst=True)
+    # other tests may drop `researches`, so ensure it (and `documents`,
+    # RDA-017) exist here.
+    Base.metadata.create_all(
+        engine,
+        tables=[Base.metadata.tables["researches"], Base.metadata.tables["documents"]],
+        checkfirst=True,
+    )
     PgSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 

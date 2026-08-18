@@ -10,7 +10,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -55,6 +55,12 @@ class Research(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    documents: Mapped[list["Document"]] = relationship(  # noqa: F821
+        "Document",
+        back_populates="research",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:  # pragma: no cover - debug helper

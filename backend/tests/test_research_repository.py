@@ -20,7 +20,10 @@ from app.repositories.research_repository import ResearchRepository
 @pytest.fixture
 def db() -> Session:
     engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables["researches"]])
+    # "documents" is needed too: Research.documents (RDA-017) cascades on delete.
+    Base.metadata.create_all(
+        engine, tables=[Base.metadata.tables["researches"], Base.metadata.tables["documents"]]
+    )
     factory: sessionmaker[Session] = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
     session = factory()
     try:
