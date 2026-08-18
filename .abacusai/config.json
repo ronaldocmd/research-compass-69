@@ -5,7 +5,11 @@
       "Bash(python.exe *)",
       "Bash(.\\.venvScriptspython.exe *)",
       "Bash(Get-Content *)",
-      "Bash($env:TEST_DATABASE_URL *)"
+      "Bash($env:TEST_DATABASE_URL *)",
+      "Bash(docker.exe *)",
+      "Bash($env:DATABASE_URL *)",
+      "Bash($env:TEST_DATABASE_URL *)",
+      "Bash(where.exe *)"
     ]
   }
 }
