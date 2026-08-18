@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+psycopg://rda:rda@localhost:5432/rda"
     BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
 
+    # OpenAlex search provider (RDA-012). No API key required; an email is
+    # recommended by OpenAlex to get into their "polite pool" (higher rate limit).
+    OPENALEX_BASE_URL: str = "https://api.openalex.org"
+    OPENALEX_EMAIL: str | None = None
+    OPENALEX_TIMEOUT_SECONDS: float = 10.0
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""

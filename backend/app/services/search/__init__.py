@@ -1,16 +1,16 @@
-"""Search abstraction layer (RDA-011).
+"""Search abstraction layer (RDA-011 / RDA-012).
 
-Future architecture:
+Architecture:
 
-    Search Service -> SearchProvider -> OpenAlex
-                                      -> Crossref
+    Search Service -> SearchProvider -> OpenAlex (RDA-012)
+                                      -> Crossref (RDA-013)
                                       -> (other providers)
 
-Only the contract lives here for now: concrete providers (OpenAlex,
-Crossref, ...) and the orchestrating Search Service arrive in later
-tickets. Deduplication and document processing are out of scope too.
+The orchestrating Search Service, deduplication and document processing
+arrive in later tickets.
 """
 
+from app.services.search.openalex import OpenAlexSearchProvider
 from app.services.search.provider import SearchProvider
 
-__all__ = ["SearchProvider"]
+__all__ = ["SearchProvider", "OpenAlexSearchProvider"]
