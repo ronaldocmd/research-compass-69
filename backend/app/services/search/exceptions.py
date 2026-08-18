@@ -28,3 +28,11 @@ class SearchProviderHTTPError(SearchProviderError):
 
 class SearchProviderInvalidResponseError(SearchProviderError):
     """The upstream provider returned an unparsable/unexpected payload."""
+
+
+class UnknownSearchProviderError(SearchProviderError):
+    """SearchService was asked to use a provider name it does not know (RDA-014)."""
+
+    def __init__(self, provider: str) -> None:
+        super().__init__(f"Unknown search provider: {provider!r}")
+        self.provider = provider
