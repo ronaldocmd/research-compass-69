@@ -1,4 +1,4 @@
-"""Tests for SearchService orchestration (RDA-014).
+"""Tests for SearchService orchestration (RDA-014 / RDA-016).
 
 Uses fake SearchProvider implementations injected into SearchService: no
 test depends on the real OpenAlex/Crossref APIs.
@@ -141,3 +141,52 @@ def test_search_service_does_not_couple_research_to_providers() -> None:
 
     signature = inspect.signature(ServiceClass.search)
     assert "research" not in signature.parameters
+
+
+def test_search_deduplicates_results_by_default() -> None:
+    duplicated = [
+        NormalizedSearchResult(source="openalex", doi="10.1000/xyz123", title="A"),
+        NormalizedSearchResult(source="openalex", doi="10.1000/xyz123", title="A duplicate"),
+    ]
+    fake_openalex = FakeProvider("openalex", results=duplicated)
+    service = SearchService(providers={"openalex": fake_openalex})
+
+    results = service.search("query")
+
+    assert len(results) == 1
+
+
+def test_search_can_disable_deduplication() -> None:
+    duplicated = [
+        NormalizedSearchResult(source="openalex", doi="10.1000/xyz123", title="A"),
+        NormalizedSearchResult(source="openalex", doi="10.1000/xyz123", title="A duplicate"),
+    ]
+    fake_openalex = FakeProvider("openalex", results=duplicated)
+    service = SearchService(providers={"openalex": fake_openalex})
+
+    results = service.search("query", deduplicate=False)
+
+    assert len(results) == 2
+
+
+def test_search_service_accepts_custom_provider_preference() -> None:
+    openalex_result = NormalizedSearchResult(
+        source="openalex", external_id="W1", title="OpenAlex Title"
+    )
+    crossref_result = NormalizedSearchResult(
+        source="crossref", external_id="W1", title="Crossref Title"
+    )
+    fake_openalex = FakeProvider("openalex", results=[openalex_result])
+    fake_crossref = FakeProvider("crossref", results=[crossref_result])
+    service = SearchService(
+        providers={"openalex": fake_openalex, "crossref": fake_crossref},
+        provider_preference=["crossref", "openalex"],
+    )
+
+    # Run both providers' results through the same dedup pass manually,
+    # mirroring how a future multi-provider search would combine them.
+    combined = fake_openalex.search("query") + fake_crossref.search("query")
+    deduped = service._deduplicator.deduplicate(combined)
+
+    assert len(deduped) == 1
+    assert deduped[0].source == "crossref"

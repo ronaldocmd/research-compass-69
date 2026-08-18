@@ -1,4 +1,4 @@
-"""SearchService: orchestrates SearchProvider adapters (RDA-014).
+"""SearchService: orchestrates SearchProvider adapters (RDA-014 / RDA-016).
 
     Research (entity)
         -> SearchService (orchestration)
@@ -8,10 +8,12 @@
 The service never talks to an external API itself and never depends on any
 provider's native response shape: it only picks a SearchProvider by name and
 delegates to it, so Research stays decoupled from concrete providers.
+Results are deduplicated (RDA-016) by default before being returned.
 """
 
 from app.schemas.search import NormalizedSearchResult, SearchOptions
 from app.services.search.crossref import CrossrefSearchProvider
+from app.services.search.deduplicator import DEFAULT_PROVIDER_PREFERENCE, SearchDeduplicator
 from app.services.search.exceptions import SearchProviderError, UnknownSearchProviderError
 from app.services.search.openalex import OpenAlexSearchProvider
 from app.services.search.provider import SearchProvider
@@ -27,11 +29,18 @@ class SearchService:
         "crossref": CrossrefSearchProvider,
     }
 
-    def __init__(self, providers: dict[str, SearchProvider] | None = None) -> None:
+    def __init__(
+        self,
+        providers: dict[str, SearchProvider] | None = None,
+        provider_preference: list[str] | None = None,
+    ) -> None:
         self._providers: dict[str, SearchProvider] = (
             providers
             if providers is not None
             else {name: cls() for name, cls in self._default_provider_classes.items()}
+        )
+        self._deduplicator = SearchDeduplicator(
+            provider_preference=provider_preference or DEFAULT_PROVIDER_PREFERENCE
         )
 
     def search(
@@ -39,6 +48,7 @@ class SearchService:
         query: str,
         provider: str = DEFAULT_PROVIDER,
         options: SearchOptions | None = None,
+        deduplicate: bool = True,
     ) -> list[NormalizedSearchResult]:
         """Execute a search through the selected provider.
 
@@ -46,6 +56,8 @@ class SearchService:
             query: Search term.
             provider: Registered provider name (e.g. "openalex", "crossref").
             options: Search options (limit, offset, filters).
+            deduplicate: Whether to collapse duplicate results before
+                returning them (default True; see SearchDeduplicator).
 
         Returns:
             List of normalized results.
@@ -55,13 +67,17 @@ class SearchService:
         """
         selected = self._resolve_provider(provider)
         try:
-            return selected.search(query, options)
+            results = selected.search(query, options)
         except SearchProviderError:
             raise
         except Exception as exc:
             raise SearchProviderError(
                 f"Search failed for provider '{provider}'"
             ) from exc
+
+        if deduplicate:
+            return self._deduplicator.deduplicate(results)
+        return results
 
     def _resolve_provider(self, provider: str) -> SearchProvider:
         try:
