@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     OPENALEX_EMAIL: str | None = None
     OPENALEX_TIMEOUT_SECONDS: float = 10.0
 
+    # Crossref search provider (RDA-013). No API key required; an email is
+    # recommended by Crossref to get into their "polite pool" (higher rate limit).
+    CROSSREF_BASE_URL: str = "https://api.crossref.org"
+    CROSSREF_EMAIL: str | None = None
+    CROSSREF_TIMEOUT_SECONDS: float = 10.0
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""

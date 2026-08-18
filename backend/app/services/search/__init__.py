@@ -1,4 +1,4 @@
-"""Search abstraction layer (RDA-011 / RDA-012).
+"""Search abstraction layer (RDA-011 / RDA-012 / RDA-013).
 
 Architecture:
 
@@ -10,7 +10,8 @@ The orchestrating Search Service, deduplication and document processing
 arrive in later tickets.
 """
 
+from app.services.search.crossref import CrossrefSearchProvider
 from app.services.search.openalex import OpenAlexSearchProvider
 from app.services.search.provider import SearchProvider
 
-__all__ = ["SearchProvider", "OpenAlexSearchProvider"]
+__all__ = ["SearchProvider", "OpenAlexSearchProvider", "CrossrefSearchProvider"]
