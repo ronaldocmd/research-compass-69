@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     CROSSREF_EMAIL: str | None = None
     CROSSREF_TIMEOUT_SECONDS: float = 10.0
 
+    # Document downloader (RDA-018).
+    DOWNLOAD_TIMEOUT_SECONDS: float = 30.0
+    DOWNLOAD_MAX_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
+    DOWNLOAD_ALLOWED_CONTENT_TYPES: str = (
+        "application/pdf,text/html,application/octet-stream"
+    )
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""
