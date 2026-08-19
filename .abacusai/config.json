@@ -9,7 +9,28 @@
       "Bash(docker.exe *)",
       "Bash($env:DATABASE_URL *)",
       "Bash($env:TEST_DATABASE_URL *)",
-      "Bash(where.exe *)"
+      "Bash(where.exe *)",
+      "Bash(ForEach-Object *)",
+      "Bash(Start-Process *)",
+      "Bash(wsl *)",
+      "Bash($ok=$false *)",
+      "Bash(for *)",
+      "Bash(docker compose up *)",
+      "Bash(python.exe *)",
+      "Bash(python.exe *)",
+      "Bash(python.exe *)",
+      "Bash(python.exe *)",
+      "Bash(python.exe *)",
+      "Bash(python.exe *)",
+      "Bash(Remove-Item *)",
+      "Bash(cd /c/Users/Master/research-compass-69/backend)",
+      "Bash(Get-Location)",
+      "Bash(pip.exe *)",
+      "Bash(Get-ChildItem . -Filter \"requirements*\")",
+      "Bash(New-Item *)",
+      "Bash(x02\") *)",
+      "Bash(Out-File *)",
+      "Bash(python.exe *)"
     ]
   }
 }

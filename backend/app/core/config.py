@@ -35,6 +35,9 @@ class Settings(BaseSettings):
         "application/pdf,text/html,application/octet-stream"
     )
 
+    # File storage (RDA-019).
+    STORAGE_BASE_DIR: str = "storage/documents"
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""

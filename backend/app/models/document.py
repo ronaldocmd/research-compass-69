@@ -62,12 +62,16 @@ class Document(Base):
             name="document_status",
             native_enum=True,
             validate_strings=True,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
         ),
         nullable=False,
         default=DocumentStatus.PENDING,
         server_default=DocumentStatus.PENDING.value,
     )
     relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    storage_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    file_size: Mapped[int | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

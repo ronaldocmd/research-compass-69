@@ -63,7 +63,12 @@ def pg_session() -> Session:
     engine = create_engine(PG_URL, future=True)
     with engine.begin() as conn:
         conn.execute(text('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables["researches"]])
+    # "documents" is created too: it has a FK to "researches" (RDA-017), so
+    # it must exist before "researches" and be dropped first on teardown.
+    Base.metadata.create_all(
+        engine,
+        tables=[Base.metadata.tables["researches"], Base.metadata.tables["documents"]],
+    )
     factory: sessionmaker[Session] = sessionmaker(bind=engine, future=True)
     session = factory()
     try:
@@ -71,10 +76,14 @@ def pg_session() -> Session:
     finally:
         session.rollback()
         session.close()
-        Base.metadata.drop_all(engine, tables=[Base.metadata.tables["researches"]])
+        Base.metadata.drop_all(
+            engine,
+            tables=[Base.metadata.tables["documents"], Base.metadata.tables["researches"]],
+        )
         ResearchStatus  # keep import used
         with engine.begin() as conn:
             conn.execute(text("DROP TYPE IF EXISTS research_status"))
+            conn.execute(text("DROP TYPE IF EXISTS document_status"))
         engine.dispose()
 
 
