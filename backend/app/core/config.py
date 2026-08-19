@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSION: int = 1536
     EMBEDDING_BATCH_SIZE: int = 100
 
+    # Retrieval (RDA-024). Default top-K and minimum cosine-similarity
+    # threshold for DocumentRetriever; both can be overridden per-call.
+    RETRIEVAL_TOP_K: int = 5
+    RETRIEVAL_MIN_SCORE: float = 0.7
+
+    # LLM (RDA-025). Completion model used by ClaimExtractor (and later
+    # evidence/synthesis steps).
+    LLM_MODEL: str = "gpt-4o-mini"
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""
