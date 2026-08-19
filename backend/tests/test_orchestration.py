@@ -42,7 +42,8 @@ def _fake_nodes(calls):
     return types.SimpleNamespace(
         planner_node=make("planner"),
         search_node=make("search"),
-        process_node=make("process"),
+        selection_node=make("selection"),
+        processing_node=make("processing"),
         evidence_node=make("evidence"),
         synthesis_node=make("synthesis"),
         complete_node=make("complete"),
@@ -100,7 +101,15 @@ def test_workflow_traverses_stages_in_order() -> None:
 
     _run(graph, WorkflowStateManager.create_initial_state(uuid.uuid4()))
 
-    assert calls == ["planner", "search", "process", "evidence", "synthesis", "complete"]
+    assert calls == [
+        "planner",
+        "search",
+        "selection",
+        "processing",
+        "evidence",
+        "synthesis",
+        "complete",
+    ]
 
 
 def test_workflow_reaches_completed() -> None:

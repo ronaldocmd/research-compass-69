@@ -1,7 +1,7 @@
-"""LangGraph definition for the research workflow (RDA-033).
+"""LangGraph definition for the research workflow (RDA-033 / RDA-034).
 
-    START -> planner -> search -> process -> evidence -> synthesis
-                -> complete | budget_exceeded | failed -> END
+    START -> planner -> search -> selection -> processing -> evidence
+            -> synthesis -> complete | budget_exceeded | failed -> END
 
 The state type is ResearchWorkflowState (RDA-032). Terminal routing depends
 on the budget and on whether a permanent error was recorded.
@@ -28,7 +28,8 @@ def build_graph(nodes: ResearchNodes):
 
     graph.add_node("planner", nodes.planner_node)
     graph.add_node("search", nodes.search_node)
-    graph.add_node("process", nodes.process_node)
+    graph.add_node("selection", nodes.selection_node)
+    graph.add_node("processing", nodes.processing_node)
     graph.add_node("evidence", nodes.evidence_node)
     graph.add_node("synthesis", nodes.synthesis_node)
     graph.add_node("complete", nodes.complete_node)
@@ -37,8 +38,9 @@ def build_graph(nodes: ResearchNodes):
 
     graph.add_edge(START, "planner")
     graph.add_edge("planner", "search")
-    graph.add_edge("search", "process")
-    graph.add_edge("process", "evidence")
+    graph.add_edge("search", "selection")
+    graph.add_edge("selection", "processing")
+    graph.add_edge("processing", "evidence")
     graph.add_edge("evidence", "synthesis")
     graph.add_conditional_edges(
         "synthesis",
