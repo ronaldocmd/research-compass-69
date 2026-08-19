@@ -51,7 +51,8 @@ def test_cors_headers_present(client: TestClient) -> None:
 
 
 def test_openapi_exposes_health_and_research_routes(client: TestClient) -> None:
-    """Scope guard: health (RDA-003), Research (RDA-006) and planning (RDA-031)."""
+    """Scope guard: health (RDA-003), Research (RDA-006), planning (RDA-031)
+    and orchestration (RDA-033)."""
     paths = client.get("/openapi.json").json()["paths"]
     assert set(paths) == {
         "/health",
@@ -60,5 +61,7 @@ def test_openapi_exposes_health_and_research_routes(client: TestClient) -> None:
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/plan",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/plan/tasks",
+        f"{settings.API_V1_PREFIX}/researches/{{research_id}}/run",
+        f"{settings.API_V1_PREFIX}/researches/{{research_id}}/status",
     }
 
