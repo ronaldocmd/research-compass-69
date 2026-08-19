@@ -6,13 +6,22 @@ from app.services.extraction.exceptions import (
     PDFNotFoundError,
 )
 from app.services.extraction.pdf_extractor import PDFExtractor
-from app.services.extraction.schemas import ExtractedPage, ExtractionResult
+from app.services.extraction.schemas import (
+    DocumentElement,
+    ExtractedPage,
+    ExtractionResult,
+    StructuredExtractionResult,
+    StructuredPage,
+)
 
 __all__ = [
     "CorruptedPDFError",
+    "DocumentElement",
     "ExtractedPage",
     "ExtractionError",
     "ExtractionResult",
     "PDFExtractor",
     "PDFNotFoundError",
+    "StructuredExtractionResult",
+    "StructuredPage",
 ]

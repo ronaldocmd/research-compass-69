@@ -30,7 +30,11 @@
       "Bash(New-Item *)",
       "Bash(x02\") *)",
       "Bash(Out-File *)",
-      "Bash(python.exe *)"
+      "Bash(python.exe *)",
+      "Bash(headings.pdf\") *)",
+      "Bash(table.pdf\") *)",
+      "Bash(if *)",
+      "Bash(git status --porcelain)"
     ]
   }
 }

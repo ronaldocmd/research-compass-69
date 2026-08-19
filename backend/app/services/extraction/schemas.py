@@ -31,3 +31,43 @@ class ExtractionResult(BaseModel):
     total_pages: int
     total_chars: int
     extracted_at: datetime
+
+
+class DocumentElement(BaseModel):
+    """A structural element detected on a page (RDA-021).
+
+    ``type`` is one of "heading", "paragraph" or "table". ``level`` is only
+    meaningful for headings (1 for the largest detected font, 2 for the
+    next, and so on).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: str
+    level: int | None = None
+    text: str
+    page_number: int
+    position: int
+
+
+class StructuredPage(BaseModel):
+    """A page broken down into its structural elements."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    page_number: int
+    elements: list[DocumentElement]
+
+
+class StructuredExtractionResult(BaseModel):
+    """The full document, preserving headings, paragraphs and tables.
+
+    ``document_id`` is a UUID for the same reason as in ExtractionResult.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: uuid.UUID | None = None
+    pages: list[StructuredPage]
+    total_pages: int
+    extracted_at: datetime
