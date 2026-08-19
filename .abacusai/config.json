@@ -39,7 +39,11 @@
       "Bash(if *)",
       "Bash(Select-String -Path alembic\\env.py -Pattern \"import|target_metadata\" )",
       "Bash(if *)",
-      "Bash(Select-String -Path tests\\test_db_connection.py -Pattern \"documents|researches|tables\" -Context 3,3)"
+      "Bash(Select-String -Path tests\\test_db_connection.py -Pattern \"documents|researches|tables\" -Context 3,3)",
+      "Bash(cd C:\\Users\\Master\\research-compass-69\\backend\nif (-not $env:TEST_DATABASE_URL) { $env:TEST_DATABASE_URL = (Select-Strin…)",
+      "Bash(Select-String *)",
+      "Bash(git check-ignore backend\\.env *)",
+      "Bash(if *)"
     ]
   }
 }

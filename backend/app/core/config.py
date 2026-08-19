@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     CHUNK_SIZE_CHARS: int = 1000
     CHUNK_STRATEGY: str = "structure_aware"
 
+    # Embeddings (RDA-023).
+    EMBEDDING_PROVIDER: str = "openai"
+    OPENAI_API_KEY: str | None = None
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_DIMENSION: int = 1536
+    EMBEDDING_BATCH_SIZE: int = 100
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""
