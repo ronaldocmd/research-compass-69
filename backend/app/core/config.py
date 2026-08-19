@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # File storage (RDA-019).
     STORAGE_BASE_DIR: str = "storage/documents"
 
+    # Chunking (RDA-022). Size is in characters, not tokens, to keep the
+    # strategy dependency-free and deterministic.
+    CHUNK_SIZE_CHARS: int = 1000
+    CHUNK_STRATEGY: str = "structure_aware"
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""

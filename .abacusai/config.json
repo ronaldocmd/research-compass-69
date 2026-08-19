@@ -34,7 +34,12 @@
       "Bash(headings.pdf\") *)",
       "Bash(table.pdf\") *)",
       "Bash(if *)",
-      "Bash(git status --porcelain)"
+      "Bash(git status --porcelain)",
+      "Bash(git pull origin *)",
+      "Bash(if *)",
+      "Bash(Select-String -Path alembic\\env.py -Pattern \"import|target_metadata\" )",
+      "Bash(if *)",
+      "Bash(Select-String -Path tests\\test_db_connection.py -Pattern \"documents|researches|tables\" -Context 3,3)"
     ]
   }
 }
