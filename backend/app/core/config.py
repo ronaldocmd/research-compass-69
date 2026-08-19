@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # evidence/synthesis steps).
     LLM_MODEL: str = "gpt-4o-mini"
 
+    # Planning (RDA-030). Bounds for the number of tasks a plan may contain.
+    PLANNING_MIN_TASKS: int = 3
+    PLANNING_MAX_TASKS: int = 10
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Comma-separated origins -> list. Supports the wildcard '*'."""
