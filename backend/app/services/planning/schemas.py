@@ -1,31 +1,16 @@
-"""DTOs for research planning (RDA-030)."""
+"""DTOs for research planning (RDA-030).
+
+``TaskType``/``TaskStatus`` live in app.models.plan (RDA-031) so the same
+enums are shared by the planner DTOs and the persisted PlanTask model.
+"""
 
 import uuid
 from datetime import datetime
-from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-class TaskType(str, Enum):
-    """The kind of work a planned task represents."""
-
-    SEARCH = "SEARCH"
-    PROCESS = "PROCESS"
-    EXTRACT = "EXTRACT"
-    VALIDATE = "VALIDATE"
-    SYNTHESIZE = "SYNTHESIZE"
-
-
-class TaskStatus(str, Enum):
-    """Lifecycle of a planned task."""
-
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    SKIPPED = "SKIPPED"
+from app.models.plan import TaskStatus, TaskType
 
 
 class ResearchPlanInput(BaseModel):
