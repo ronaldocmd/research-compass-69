@@ -26,8 +26,13 @@ def test_engine_is_lazy_and_cached() -> None:
 
 
 def test_declarative_base_metadata_is_available() -> None:
-    # RDA-022 stage: Research, Document and Chunk are the registered domain tables.
-    assert set(Base.metadata.tables) == {"researches", "documents", "chunks"}
+    # All registered domain tables must be available to Alembic.
+    assert set(Base.metadata.tables) == {
+        "researches",
+        "documents",
+        "chunks",
+        "workflow_checkpoints",
+    }
 
 
 def test_repository_ping_uses_a_real_session() -> None:
