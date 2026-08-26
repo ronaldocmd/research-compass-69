@@ -22,6 +22,13 @@ def route_after_synthesis(state: ResearchWorkflowState) -> str:
     return "complete"
 
 
+def route_after_node(state: ResearchWorkflowState, next_node: str) -> str:
+    """Stop at the budget terminal as soon as a node exhausts the budget."""
+    if state.current_stage.value == "BUDGET_EXCEEDED":
+        return "budget_exceeded"
+    return next_node
+
+
 def build_graph(nodes: ResearchNodes):
     """Build and compile the research workflow graph."""
     graph = StateGraph(ResearchWorkflowState)
@@ -37,11 +44,26 @@ def build_graph(nodes: ResearchNodes):
     graph.add_node("failed", nodes.failed_node)
 
     graph.add_edge(START, "planner")
-    graph.add_edge("planner", "search")
-    graph.add_edge("search", "selection")
-    graph.add_edge("selection", "processing")
-    graph.add_edge("processing", "evidence")
-    graph.add_edge("evidence", "synthesis")
+    graph.add_conditional_edges(
+        "planner", lambda state: route_after_node(state, "search"),
+        {"search": "search", "budget_exceeded": "budget_exceeded"},
+    )
+    graph.add_conditional_edges(
+        "search", lambda state: route_after_node(state, "selection"),
+        {"selection": "selection", "budget_exceeded": "budget_exceeded"},
+    )
+    graph.add_conditional_edges(
+        "selection", lambda state: route_after_node(state, "processing"),
+        {"processing": "processing", "budget_exceeded": "budget_exceeded"},
+    )
+    graph.add_conditional_edges(
+        "processing", lambda state: route_after_node(state, "evidence"),
+        {"evidence": "evidence", "budget_exceeded": "budget_exceeded"},
+    )
+    graph.add_conditional_edges(
+        "evidence", lambda state: route_after_node(state, "synthesis"),
+        {"synthesis": "synthesis", "budget_exceeded": "budget_exceeded"},
+    )
     graph.add_conditional_edges(
         "synthesis",
         route_after_synthesis,

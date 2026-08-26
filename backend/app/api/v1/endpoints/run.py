@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.services.orchestration.exceptions import OrchestrationError
 from app.services.orchestration.orchestrator import ResearchOrchestrator
-from app.services.workflow.state import ResearchWorkflowState
+from app.services.workflow.state import ResearchWorkflowState, WorkflowStage
+
+
+class WorkflowStatusResponse(ResearchWorkflowState):
+    """Workflow state plus the concise stage name used by status clients."""
+
+    stage: WorkflowStage
 
 router = APIRouter()
 
@@ -26,13 +32,14 @@ async def run_workflow(
     return await orchestrator.run(research_id)
 
 
-@router.get("/{research_id}/status", response_model=ResearchWorkflowState)
+@router.get("/{research_id}/status", response_model=WorkflowStatusResponse)
 async def workflow_status(
     research_id: uuid.UUID,
     orchestrator: ResearchOrchestrator = Depends(_orchestrator),
 ) -> ResearchWorkflowState:
     try:
-        return await orchestrator.get_state_by_research(research_id)
+        state = await orchestrator.get_state_by_research(research_id)
+        return WorkflowStatusResponse(**state.model_dump(), stage=state.current_stage)
     except OrchestrationError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

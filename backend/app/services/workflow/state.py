@@ -51,6 +51,7 @@ class BudgetState(BaseModel):
     estimated_cost_usd: float = 0.0
     max_llm_calls: int = 50
     max_search_calls: int = 20
+    max_processing_operations: int = 100
     max_cost_usd: float = 5.0
     is_exceeded: bool = False
 

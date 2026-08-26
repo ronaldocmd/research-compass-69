@@ -13,8 +13,6 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.services.llm.exceptions import InvalidLLMResponseError, LLMProviderError
-from app.services.planning.exceptions import InvalidPlanError, PlanningError
 from app.services.planning.schemas import ResearchPlanInput, TaskType
 from app.services.workflow.state import (
     ErrorSeverity,
@@ -23,6 +21,11 @@ from app.services.workflow.state import (
     WorkflowStage,
 )
 from app.services.workflow.retry_handler import RetryHandler, RetryPolicy
+from app.services.workflow.budget_guard import (
+    BudgetConfig,
+    BudgetExceededError,
+    BudgetGuard,
+)
 from app.services.workflow.state_manager import WorkflowStateManager
 
 _SELECTION_NAMESPACE = uuid.UUID("8f1c2a3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b")
@@ -54,6 +57,9 @@ class ResearchNodes:
         max_documents: int = 20,
         retry_handler: RetryHandler | None = None,
         retry_policy: RetryPolicy | None = None,
+        budget_guard: BudgetGuard | None = None,
+        budget_config: BudgetConfig | None = None,
+        checkpoint_manager=None,
     ) -> None:
         self._planner = planner
         self._search = search
@@ -66,6 +72,8 @@ class ResearchNodes:
         self._summary_saver = summary_saver
         self._max_documents = max_documents
         self._retry_handler = retry_handler or RetryHandler(retry_policy)
+        self._budget_guard = budget_guard or BudgetGuard(budget_config)
+        self._checkpoint_manager = checkpoint_manager
 
     # --- helpers -------------------------------------------------------------
 
@@ -85,9 +93,15 @@ class ResearchNodes:
         return WorkflowStateManager.add_error(state, error)
 
     async def _execute_external(
-        self, state, stage, func, *args, terminal_on_failure=True, **kwargs
+        self, state, stage, func, *args, budget_operation=None,
+        terminal_on_failure=True, **kwargs
     ):
         """Run one external operation and convert its final failure to state."""
+        if budget_operation is not None:
+            try:
+                self._check_budget(state, budget_operation)
+            except BudgetExceededError as exc:
+                return await self._handle_budget_exceeded(state, stage, exc)
         if state.retry_count >= 10:
             state = self._record_error(
                 state, stage, "Global retry limit reached",
@@ -133,6 +147,17 @@ class ResearchNodes:
                     "retry_count": state.retry_count,
                 },
             )
+        if budget_operation == "llm":
+            state = self._budget_guard.record_llm_call(state, self._tokens_used(result))
+        elif budget_operation == "search":
+            state = self._budget_guard.record_search_call(state)
+        elif budget_operation == "processing":
+            state = self._budget_guard.record_processing(state)
+        if budget_operation is not None and self._budget_guard.is_exceeded(state):
+            return await self._handle_budget_exceeded(
+                state, stage,
+                BudgetExceededError(budget_operation, "limit reached after operation"),
+            )
         if state.retry_count >= 10:
             state = self._record_error(
                 state, stage, "Global retry limit reached",
@@ -143,26 +168,36 @@ class ResearchNodes:
             return (failed_state if terminal_on_failure else state), None, True
         return state, result, False
 
-    @staticmethod
-    def _add_llm_calls(state, count=1):
-        budget = state.budget.model_copy(
-            update={"llm_calls": state.budget.llm_calls + count}
+    def _check_budget(self, state, operation):
+        checks = {
+            "llm": self._budget_guard.check_before_llm_call,
+            "search": self._budget_guard.check_before_search,
+            "processing": self._budget_guard.check_before_processing,
+        }
+        checks[operation](state)
+
+    async def _handle_budget_exceeded(self, state, stage, exception):
+        budget = state.budget.model_copy(update={"is_exceeded": True})
+        state = state.model_copy(update={"budget": budget})
+        state = self._record_error(
+            state, stage, str(exception), severity=ErrorSeverity.PROCESSING,
+            context={"operation": exception.operation, "detail": exception.detail},
         )
-        return state.model_copy(update={"budget": budget})
+        state = WorkflowStateManager.transition(state, WorkflowStage.BUDGET_EXCEEDED)
+        if self._checkpoint_manager is not None:
+            await self._checkpoint_manager.save(state)
+        return state, None, True
 
     @staticmethod
-    def _add_search_calls(state, count):
-        budget = state.budget.model_copy(
-            update={"search_calls": state.budget.search_calls + count}
-        )
-        return state.model_copy(update={"budget": budget})
-
-    @staticmethod
-    def _add_processing_ops(state, count):
-        budget = state.budget.model_copy(
-            update={"processing_operations": state.budget.processing_operations + count}
-        )
-        return state.model_copy(update={"budget": budget})
+    def _tokens_used(result) -> int:
+        usage = getattr(result, "usage", None)
+        if usage is None and isinstance(result, dict):
+            usage = result.get("usage")
+        if usage is None:
+            return 0
+        if isinstance(usage, dict):
+            return int(usage.get("total_tokens", 0))
+        return int(getattr(usage, "total_tokens", 0))
 
     # --- nodes ---------------------------------------------------------------
 
@@ -187,11 +222,11 @@ class ResearchNodes:
                 objective=research.objective,
                 question=research.question,
             ),
+            budget_operation="llm",
         )
         if failed:
             return state
         state = state.model_copy(update={"plan_id": plan.plan_id, "tasks": plan.tasks})
-        state = self._add_llm_calls(state)
         return WorkflowStateManager.transition(state, WorkflowStage.SEARCHING)
 
     async def search_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
@@ -204,17 +239,15 @@ class ResearchNodes:
                 task.title for task in state.tasks if task.task_type == TaskType.SEARCH
             ]
         results = list(state.search_results)
-        search_calls = 0
         for query in queries:
             state, query_results, failed = await self._execute_external(
-                state, WorkflowStage.SEARCHING, self._search.search, query
+                state, WorkflowStage.SEARCHING, self._search.search, query,
+                budget_operation="search",
             )
             if failed:
                 return state
             results.extend(query_results)
-            search_calls += 1
         state = state.model_copy(update={"search_results": results})
-        state = self._add_search_calls(state, search_calls)
         return WorkflowStateManager.transition(state, WorkflowStage.SELECTING)
 
     async def selection_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
@@ -246,22 +279,22 @@ class ResearchNodes:
         failed = list(state.failed_document_ids)
         chunk_ids = list(state.chunk_ids)
         status = dict(state.processing_status)
-        ops = 0
         for doc_id in state.selected_documents:
             if doc_id in processed or doc_id in failed:
                 continue
             state, chunks, failed_operation = await self._execute_external(
                 state, WorkflowStage.PROCESSING, self._processor, doc_id,
-                terminal_on_failure=False,
+                budget_operation="processing", terminal_on_failure=False,
             )
             if failed_operation:
+                if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
+                    return state
                 failed.append(doc_id)
                 status[doc_id] = "failed"
                 continue
             processed.append(doc_id)
             chunk_ids.extend(chunks)
             status[doc_id] = "processed"
-            ops += 1
         state = state.model_copy(
             update={
                 "processed_document_ids": processed,
@@ -270,7 +303,6 @@ class ResearchNodes:
                 "processing_status": status,
             }
         )
-        state = self._add_processing_ops(state, ops)
         return WorkflowStateManager.transition(state, WorkflowStage.EXTRACTING)
 
     async def evidence_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
@@ -283,7 +315,6 @@ class ResearchNodes:
             return WorkflowStateManager.transition(state, WorkflowStage.SYNTHESIZING)
         claims = list(state.claims)
         evidence_items = list(state.evidence_items)
-        llm_calls = 0
         for task in state.tasks:
             if task.task_type != TaskType.EXTRACT:
                 continue
@@ -292,29 +323,32 @@ class ResearchNodes:
                 terminal_on_failure=False,
             )
             if failed_operation:
+                if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
+                    return state
                 continue
             chunks = retrieval.chunks
             state, extraction, failed_operation = await self._execute_external(
                 state, WorkflowStage.EXTRACTING, self._claim_extractor.extract,
-                chunks, task.title, terminal_on_failure=False,
+                chunks, task.title, budget_operation="llm", terminal_on_failure=False,
             )
             if failed_operation:
+                if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
+                    return state
                 continue
-            llm_calls += 1
             claims.extend(extraction.claims)
             for claim in extraction.claims:
                 state, evidence, failed_operation = await self._execute_external(
                     state, WorkflowStage.EXTRACTING, self._evidence_extractor.extract,
-                    claim, chunks, terminal_on_failure=False,
+                    claim, chunks, budget_operation="llm", terminal_on_failure=False,
                 )
                 if failed_operation:
+                    if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
+                        return state
                     continue
                 evidence_items.extend(evidence.evidence)
-                llm_calls += 1
         state = state.model_copy(
             update={"claims": claims, "evidence_items": evidence_items}
         )
-        state = self._add_llm_calls(state, llm_calls)
         return WorkflowStateManager.transition(state, WorkflowStage.SYNTHESIZING)
 
     async def synthesis_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
@@ -326,10 +360,10 @@ class ResearchNodes:
             state, WorkflowStage.SYNTHESIZING,
             asyncio.to_thread,
             self._llm.complete, self._build_synthesis_prompt(state), SynthesisResponse,
+            budget_operation="llm",
         )
         if failed:
             return state
-        state = self._add_llm_calls(state)
         summary = response.summary if isinstance(response, SynthesisResponse) else ""
         if summary and self._summary_saver is not None:
             state, _, _ = await self._execute_external(

@@ -19,6 +19,9 @@ __all__ = [
     "WorkflowStateManager",
     "CheckpointManager",
     "WorkflowOrchestrator",
+    "BudgetConfig",
+    "BudgetExceededError",
+    "BudgetGuard",
 ]
 
 
@@ -31,4 +34,16 @@ def __getattr__(name: str) -> object:
         from app.services.workflow.orchestrator import WorkflowOrchestrator
 
         return WorkflowOrchestrator
+    if name in {"BudgetConfig", "BudgetExceededError", "BudgetGuard"}:
+        from app.services.workflow.budget_guard import (
+            BudgetConfig,
+            BudgetExceededError,
+            BudgetGuard,
+        )
+
+        return {
+            "BudgetConfig": BudgetConfig,
+            "BudgetExceededError": BudgetExceededError,
+            "BudgetGuard": BudgetGuard,
+        }[name]
     raise AttributeError(name)
