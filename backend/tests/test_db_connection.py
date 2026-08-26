@@ -28,7 +28,7 @@ def test_engine_is_lazy_and_cached() -> None:
 def test_declarative_base_metadata_is_available() -> None:
     # RDA-031 stage: Research, Document, Chunk, ResearchPlan and PlanTask are
     # the registered domain tables. RDA-049 adds human_evaluations; RDA-050
-    # adds usage_events.
+    # adds usage_events; RDA-051 adds performance_metrics.
     assert set(Base.metadata.tables) == {
         "researches",
         "documents",
@@ -38,6 +38,7 @@ def test_declarative_base_metadata_is_available() -> None:
         "workflow_checkpoints",
         "human_evaluations",
         "usage_events",
+        "performance_metrics",
     }
 
 

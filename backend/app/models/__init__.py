@@ -3,6 +3,7 @@
 from app.models.chunk import ChunkRecord
 from app.models.document import Document, DocumentStatus
 from app.models.human_evaluation import HumanEvaluation
+from app.models.performance_metric import PerformanceMetric
 from app.models.plan import PlanStatus, PlanTaskRecord, ResearchPlanRecord, TaskStatus, TaskType
 from app.models.research import Research, ResearchStatus
 from app.models.usage_event import UsageEvent
@@ -13,6 +14,7 @@ __all__ = [
     "Document",
     "DocumentStatus",
     "HumanEvaluation",
+    "PerformanceMetric",
     "PlanStatus",
     "PlanTaskRecord",
     "Research",

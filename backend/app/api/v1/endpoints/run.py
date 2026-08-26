@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.services.orchestration.exceptions import OrchestrationError
 from app.services.orchestration.orchestrator import ResearchOrchestrator
+from app.services.performance.tracker import PerformanceTracker
 from app.services.research_service import ResearchService
 from app.services.workflow.state import ResearchWorkflowState, WorkflowStage
 
@@ -34,16 +35,20 @@ async def run_workflow(
     orchestrator: ResearchOrchestrator = Depends(_orchestrator),
     db: Session = Depends(get_db),
 ) -> ResearchWorkflowState:
-    """Run the workflow, recording start/complete timing on the Research.
+    """Run the workflow, recording start/complete timing and stage metrics.
 
     Timing persistence is best-effort: when the research does not exist in
     the database (e.g. in-memory orchestration tests), the run still proceeds
-    without persisting timing.
+    without persisting timing. When it does exist, a DB-backed
+    PerformanceTracker records per-stage timing (RDA-051).
     """
     service = ResearchService(db)
     research = service.repository.get(research_id)
     if research is not None:
         service.repository.update(research, started_at=datetime.now(UTC))
+        orchestrator = ResearchOrchestrator(
+            performance_tracker=PerformanceTracker(db)
+        )
     state = await orchestrator.run(research_id)
     if research is not None:
         service.repository.update(research, completed_at=datetime.now(UTC))

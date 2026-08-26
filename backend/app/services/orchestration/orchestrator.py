@@ -16,8 +16,14 @@ from app.services.workflow.state_manager import WorkflowStateManager
 class ResearchOrchestrator:
     """Runs the research workflow graph and tracks executions."""
 
-    def __init__(self, nodes: ResearchNodes | None = None) -> None:
-        self._graph = build_graph(nodes if nodes is not None else ResearchNodes())
+    def __init__(
+        self,
+        nodes: ResearchNodes | None = None,
+        performance_tracker=None,
+    ) -> None:
+        if nodes is None:
+            nodes = ResearchNodes(performance_tracker=performance_tracker)
+        self._graph = build_graph(nodes)
         self._states: dict[uuid.UUID, ResearchWorkflowState] = {}
         self._latest_by_research: dict[uuid.UUID, uuid.UUID] = {}
 

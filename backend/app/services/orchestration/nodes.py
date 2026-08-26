@@ -60,6 +60,7 @@ class ResearchNodes:
         budget_guard: BudgetGuard | None = None,
         budget_config: BudgetConfig | None = None,
         checkpoint_manager=None,
+        performance_tracker=None,
     ) -> None:
         self._planner = planner
         self._search = search
@@ -74,8 +75,46 @@ class ResearchNodes:
         self._retry_handler = retry_handler or RetryHandler(retry_policy)
         self._budget_guard = budget_guard or BudgetGuard(budget_config)
         self._checkpoint_manager = checkpoint_manager
+        # Performance tracking (RDA-051): when a tracker is provided, each
+        # tracked stage records start/end timing around its node.
+        self._performance_tracker = performance_tracker
+        if performance_tracker is not None:
+            self.planner_node = self._tracked("planning")(self.planner_node)
+            self.search_node = self._tracked("search")(self.search_node)
+            self.processing_node = self._tracked("processing")(self.processing_node)
+            self.evidence_node = self._tracked("evidence")(self.evidence_node)
+            self.synthesis_node = self._tracked("synthesis")(self.synthesis_node)
 
     # --- helpers -------------------------------------------------------------
+
+    def _tracked(self, stage: str):
+        """Wrap a node method to record stage start/end timing (RDA-051)."""
+
+        def decorator(fn):
+            async def wrapper(state):
+                self._perf_start(state, stage)
+                result = await fn(state)
+                self._perf_end(state, stage)
+                return result
+
+            return wrapper
+
+        return decorator
+
+    def _perf_start(self, state, stage: str) -> None:
+        if self._performance_tracker is not None:
+            self._performance_tracker.start_stage(state.research_id, stage)
+
+    def _perf_end(self, state, stage: str) -> None:
+        if self._performance_tracker is None:
+            return
+        failed = state.current_stage in (
+            WorkflowStage.FAILED,
+            WorkflowStage.BUDGET_EXCEEDED,
+        )
+        self._performance_tracker.end_stage(
+            state.research_id, stage, status="failed" if failed else "success"
+        )
 
     @staticmethod
     def _record_error(

@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.performance import ResearchPerformanceResponse
+from app.schemas.performance import PerformanceReport
 from app.schemas.research import ResearchCreate, ResearchResponse, ResearchUpdate
 from app.schemas.usage import ResearchCostResponse
+from app.services.performance.tracker import PerformanceTracker
 from app.services.research_service import ResearchNotFoundError, ResearchService
 from app.services.usage.tracker import UsageTracker
 
@@ -21,6 +22,10 @@ def _service(db: Session = Depends(get_db)) -> ResearchService:
 
 def _usage_tracker(db: Session = Depends(get_db)) -> UsageTracker:
     return UsageTracker(db)
+
+
+def _performance_tracker(db: Session = Depends(get_db)) -> PerformanceTracker:
+    return PerformanceTracker(db)
 
 
 def _not_found(exc: ResearchNotFoundError) -> HTTPException:
@@ -89,19 +94,15 @@ def get_research_cost(
     return ResearchCostResponse.model_validate(tracker.get_report(research_id))
 
 
-@router.get("/{research_id}/performance", response_model=ResearchPerformanceResponse)
+@router.get("/{research_id}/performance", response_model=PerformanceReport)
 def get_research_performance(
     research_id: uuid.UUID,
     service: ResearchService = Depends(_service),
-) -> ResearchPerformanceResponse:
-    """Return the run timing (start, complete, duration) for a research (RDA-051)."""
+    tracker: PerformanceTracker = Depends(_performance_tracker),
+) -> PerformanceReport:
+    """Return the performance metrics for a research (RDA-051)."""
     try:
-        research = service.get(research_id)
+        service.get(research_id)
     except ResearchNotFoundError as exc:
         raise _not_found(exc) from exc
-    return ResearchPerformanceResponse(
-        research_id=research.id,
-        started_at=research.started_at,
-        completed_at=research.completed_at,
-        duration_seconds=research.duration_seconds,
-    )
+    return tracker.get_report(research_id)
