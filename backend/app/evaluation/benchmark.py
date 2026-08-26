@@ -1,22 +1,25 @@
 """Validated benchmark dataset primitives (RDA-046)."""
 
 import json
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-class BenchmarkCase(BaseModel):
-    """One deterministic research question and its evaluation targets."""
+class BenchmarkQuestion(BaseModel):
+    """One research question and its reproducible evaluation targets."""
 
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(min_length=1)
     question: str = Field(min_length=1)
-    expected_claims: list[str] = Field(min_length=1)
-    expected_sources: list[str] = Field(default_factory=list)
-    required_keywords: list[str] = Field(default_factory=list)
+    objective: str = Field(min_length=1)
+    language: str = Field(default="pt", min_length=2, max_length=10)
+    depth: Literal["superficial", "medium", "deep"]
+    expected_sources: list[str] | None = None
+    evaluation_criteria: list[str] = Field(min_length=1)
 
 
 class BenchmarkDataset(BaseModel):
@@ -24,26 +27,26 @@ class BenchmarkDataset(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(min_length=1)
     version: str = Field(min_length=1)
-    cases: list[BenchmarkCase] = Field(min_length=1)
+    created_at: datetime
+    questions: list[BenchmarkQuestion] = Field(min_length=1)
 
     @model_validator(mode="after")
     def unique_case_ids(self) -> "BenchmarkDataset":
-        ids = [case.id for case in self.cases]
+        ids = [question.id for question in self.questions]
         if len(ids) != len(set(ids)):
             raise ValueError("benchmark case IDs must be unique")
         return self
 
 
-def load_benchmark(path: str | Path) -> BenchmarkDataset:
-    """Load a JSON or JSONL benchmark file and validate its contract."""
-    benchmark_path = Path(path)
+BenchmarkCase = BenchmarkQuestion
+
+
+def load_benchmark(version: str | Path = "v1.0") -> BenchmarkDataset:
+    """Load a versioned benchmark dataset from ``backend/data/benchmarks``."""
+    benchmark_path = Path(version)
+    if not benchmark_path.exists():
+        benchmark_path = Path(__file__).parents[2] / "data" / "benchmarks" / f"{version}.json"
     raw = benchmark_path.read_text(encoding="utf-8")
-    if benchmark_path.suffix.lower() == ".jsonl":
-        payload: dict[str, Any] = {"cases": [json.loads(line) for line in raw.splitlines() if line.strip()]}
-        payload.setdefault("name", benchmark_path.stem)
-        payload.setdefault("version", "1")
-    else:
-        payload = json.loads(raw)
+    payload: dict[str, Any] = json.loads(raw)
     return BenchmarkDataset.model_validate(payload)

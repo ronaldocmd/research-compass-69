@@ -1,0 +1,84 @@
+{
+  "version": "v1.0",
+  "created_at": "2026-08-26T00:00:00Z",
+  "questions": [
+    {
+      "id": "bench_001",
+      "question": "Quais são os avanços recentes em modelos de linguagem para geração de código?",
+      "objective": "Identificar avanços técnicos, métodos de avaliação e limitações reportados na literatura recente.",
+      "language": "pt",
+      "depth": "deep",
+      "expected_sources": null,
+      "evaluation_criteria": [
+        "Encontrar pelo menos três fontes relevantes e distintas.",
+        "Apresentar ao menos uma métrica quantitativa por avanço quando a fonte fornecer essa métrica.",
+        "Manter provenance de cada afirmação até a fonte original."
+      ]
+    },
+    {
+      "id": "bench_002",
+      "question": "Como o deep learning é aplicado ao diagnóstico de câncer de pulmão?",
+      "objective": "Comparar modalidades de dados, tarefas clínicas e limitações dos métodos de deep learning.",
+      "language": "pt",
+      "depth": "deep",
+      "expected_sources": null,
+      "evaluation_criteria": [
+        "Separar detecção, classificação e segmentação como tarefas distintas.",
+        "Relatar limitações clínicas e de dados além dos resultados de desempenho.",
+        "Vincular cada conclusão a evidência rastreável."
+      ]
+    },
+    {
+      "id": "bench_003",
+      "question": "Quais métricas são usadas para avaliar sistemas de recomendação?",
+      "objective": "Organizar métricas offline e online e explicar qual aspecto cada uma mede.",
+      "language": "pt",
+      "depth": "medium",
+      "expected_sources": null,
+      "evaluation_criteria": [
+        "Incluir métricas de ranking e de relevância, sem tratá-las como equivalentes.",
+        "Explicar pelo menos uma limitação de métricas offline.",
+        "Distinguir métricas de qualidade da recomendação de métricas de negócio."
+      ]
+    },
+    {
+      "id": "bench_004",
+      "question": "O que é Chain-of-Thought prompting e quando ele é eficaz?",
+      "objective": "Definir a técnica, delimitar suas condições de eficácia e registrar ressalvas metodológicas.",
+      "language": "pt",
+      "depth": "medium",
+      "expected_sources": null,
+      "evaluation_criteria": [
+        "Apresentar uma definição apoiada por fonte.",
+        "Relacionar eficácia à tarefa e ao modelo, evitando generalização sem evidência.",
+        "Registrar limitações e riscos de interpretar a cadeia como explicação fiel."
+      ]
+    },
+    {
+      "id": "bench_005",
+      "question": "Quais são as limitações conhecidas de embeddings vetoriais para busca semântica?",
+      "objective": "Avaliar limitações de representação, recuperação, atualização e viés em buscas semânticas.",
+      "language": "pt",
+      "depth": "deep",
+      "expected_sources": null,
+      "evaluation_criteria": [
+        "Cobrir pelo menos duas classes diferentes de limitação.",
+        "Distinguir falha de recuperação de falha de representação.",
+        "Indicar quando uma afirmação é uma limitação documentada ou uma lacuna de evidência."
+      ]
+    },
+    {
+      "id": "bench_006",
+      "question": "Quais fatores tornam uma revisão sistemática reproduzível?",
+      "objective": "Identificar práticas de busca, seleção, extração e avaliação que permitem repetir a revisão.",
+      "language": "pt",
+      "depth": "superficial",
+      "expected_sources": null,
+      "evaluation_criteria": [
+        "Cobrir estratégia de busca, critérios de seleção e registro das decisões.",
+        "Distinguir transparência metodológica de simples disponibilidade do resultado.",
+        "Apresentar somente recomendações apoiadas pelas fontes encontradas."
+      ]
+    }
+  ]
+}
