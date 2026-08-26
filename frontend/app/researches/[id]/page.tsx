@@ -53,6 +53,9 @@ export default async function ResearchDetailPage({ params }: { params: Promise<{
             </div>
           </dl>
           <div className="row">
+            <Link href={`/researches/${research.id}/dashboard`} className="btn primary">
+              Dashboard
+            </Link>
             <Link href={`/researches/${research.id}/edit`} className="btn primary">
               Editar
             </Link>
