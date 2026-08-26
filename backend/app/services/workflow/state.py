@@ -8,7 +8,7 @@ strings, so the round-trip is lossless).
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -24,11 +24,14 @@ class WorkflowStage(str, Enum):
     """The stages a research execution moves through."""
 
     IDLE = "IDLE"
+    START = "IDLE"
     PLANNING = "PLANNING"
-    SEARCHING = "SEARCHING"
+    SEARCH = "SEARCH"
+    SEARCHING = "SEARCH"
     SELECTING = "SELECTING"
     PROCESSING = "PROCESSING"
     EXTRACTING = "EXTRACTING"
+    VALIDATING = "VALIDATING"
     SYNTHESIZING = "SYNTHESIZING"
     COMPLETED = "COMPLETED"
     PAUSED = "PAUSED"
@@ -92,8 +95,9 @@ class ResearchWorkflowState(BaseModel):
 
     # Search
     search_queries: list[str] = Field(default_factory=list)
-    search_results: list[NormalizedSearchResult] = Field(default_factory=list)
+    search_results: list[NormalizedSearchResult | dict[str, Any]] = Field(default_factory=list)
     selected_documents: list[uuid.UUID] = Field(default_factory=list)
+    selected_ids: list[str] = Field(default_factory=list)
 
     # Processing
     processed_document_ids: list[uuid.UUID] = Field(default_factory=list)
@@ -114,6 +118,6 @@ class ResearchWorkflowState(BaseModel):
 
     # Metadata
     started_at: datetime | None = None
-    updated_at: datetime
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     checkpointed_at: datetime | None = None

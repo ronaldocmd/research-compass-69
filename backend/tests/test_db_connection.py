@@ -34,6 +34,7 @@ def test_declarative_base_metadata_is_available() -> None:
         "chunks",
         "research_plans",
         "plan_tasks",
+        "workflow_checkpoints",
     }
 
 

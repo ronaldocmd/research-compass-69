@@ -1,4 +1,4 @@
-"""Workflow state service (RDA-032)."""
+"""Workflow state and execution services."""
 
 from app.services.workflow.exceptions import WorkflowStateError
 from app.services.workflow.state import (
@@ -9,7 +9,6 @@ from app.services.workflow.state import (
     WorkflowStage,
 )
 from app.services.workflow.state_manager import WorkflowStateManager
-
 __all__ = [
     "BudgetState",
     "ErrorSeverity",
@@ -18,4 +17,18 @@ __all__ = [
     "WorkflowStage",
     "WorkflowStateError",
     "WorkflowStateManager",
+    "CheckpointManager",
+    "WorkflowOrchestrator",
 ]
+
+
+def __getattr__(name: str) -> object:
+    if name == "CheckpointManager":
+        from app.services.workflow.checkpoint_manager import CheckpointManager
+
+        return CheckpointManager
+    if name == "WorkflowOrchestrator":
+        from app.services.workflow.orchestrator import WorkflowOrchestrator
+
+        return WorkflowOrchestrator
+    raise AttributeError(name)
