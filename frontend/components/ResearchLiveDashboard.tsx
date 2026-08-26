@@ -103,7 +103,7 @@ export function ResearchLiveDashboard({ research, initialWorkflow }: Props) {
         <nav className="dashboard-panel dashboard-nav" aria-label="Navegação da pesquisa">
           <span className="section-label">Explorar</span>
           <Link href={`/researches/${research.id}`}>Visão geral <span>→</span></Link>
-          <span className="nav-disabled">Plano <small>Em breve</small></span>
+          <Link href={`/researches/${research.id}/plan`}>Plano <span>→</span></Link>
           <span className="nav-disabled">Documentos <small>Em breve</small></span>
           <span className="nav-disabled">Claims e evidências <small>Em breve</small></span>
           <span className="nav-disabled">Resumo <small>Em breve</small></span>

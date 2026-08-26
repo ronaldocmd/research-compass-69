@@ -1,6 +1,7 @@
 import type { HealthResponse } from "@/types/health";
 import type { Research, ResearchCreateInput, ResearchUpdateInput } from "@/types/research";
 import type { WorkflowStatus } from "@/types/workflow";
+import type { ResearchPlan } from "@/types/plan";
 
 /**
  * Base URL of the Research API.
@@ -123,4 +124,8 @@ export function deleteResearch(id: string) {
 
 export function getWorkflowStatus(id: string) {
   return request<WorkflowStatus>(`/api/v1/researches/${id}/status`);
+}
+
+export function getResearchPlan(id: string) {
+  return request<ResearchPlan>(`/api/v1/researches/${id}/plan`);
 }
