@@ -23,13 +23,13 @@ class _ResponseModel(BaseModel):
     text: str
 
 
-def _fake_client(*, parsed=None, refusal=None, error=None):
+def _fake_client(*, parsed=None, refusal=None, error=None, usage=None):
     def parse(**kwargs):
         parse.last_call = kwargs
         if error is not None:
             raise error
         message = SimpleNamespace(parsed=parsed, refusal=refusal)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
 
     parse.last_call = None
     completions = SimpleNamespace(parse=parse)
@@ -114,6 +114,47 @@ def test_complete_malformed_response_raises_invalid_response_error() -> None:
 
     with pytest.raises(InvalidLLMResponseError):
         provider.complete("p", _ResponseModel)
+
+
+def test_complete_records_usage_when_tracker_provided() -> None:
+    usage = SimpleNamespace(prompt_tokens=100, completion_tokens=50)
+    client = _fake_client(parsed=_ResponseModel(text="hi"), usage=usage)
+    recorded = {}
+
+    class _Tracker:
+        def record_llm_call(self, *, research_id, model, input_tokens, output_tokens):
+            recorded.update(
+                research_id=research_id,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+
+    provider = OpenAILLMProvider(
+        model="gpt-4",
+        client=client,
+        usage_tracker=_Tracker(),
+        research_id="research-123",
+    )
+
+    provider.complete("p", _ResponseModel)
+
+    assert recorded == {
+        "research_id": "research-123",
+        "model": "gpt-4",
+        "input_tokens": 100,
+        "output_tokens": 50,
+    }
+
+
+def test_complete_does_not_record_without_tracker() -> None:
+    usage = SimpleNamespace(prompt_tokens=100, completion_tokens=50)
+    client = _fake_client(parsed=_ResponseModel(text="hi"), usage=usage)
+    provider = OpenAILLMProvider(model="gpt-4", client=client)
+
+    result = provider.complete("p", _ResponseModel)
+
+    assert result == _ResponseModel(text="hi")
 
 
 def _fake_http_response(status_code: int):

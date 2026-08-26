@@ -6,14 +6,21 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.schemas.performance import ResearchPerformanceResponse
 from app.schemas.research import ResearchCreate, ResearchResponse, ResearchUpdate
+from app.schemas.usage import ResearchCostResponse
 from app.services.research_service import ResearchNotFoundError, ResearchService
+from app.services.usage.tracker import UsageTracker
 
 router = APIRouter()
 
 
 def _service(db: Session = Depends(get_db)) -> ResearchService:
     return ResearchService(db)
+
+
+def _usage_tracker(db: Session = Depends(get_db)) -> UsageTracker:
+    return UsageTracker(db)
 
 
 def _not_found(exc: ResearchNotFoundError) -> HTTPException:
@@ -66,3 +73,35 @@ def delete_research(
         service.delete(research_id)
     except ResearchNotFoundError as exc:
         raise _not_found(exc) from exc
+
+
+@router.get("/{research_id}/cost", response_model=ResearchCostResponse)
+def get_research_cost(
+    research_id: uuid.UUID,
+    service: ResearchService = Depends(_service),
+    tracker: UsageTracker = Depends(_usage_tracker),
+) -> ResearchCostResponse:
+    """Return the estimated cost and usage breakdown for a research (RDA-050)."""
+    try:
+        service.get(research_id)
+    except ResearchNotFoundError as exc:
+        raise _not_found(exc) from exc
+    return ResearchCostResponse.model_validate(tracker.get_report(research_id))
+
+
+@router.get("/{research_id}/performance", response_model=ResearchPerformanceResponse)
+def get_research_performance(
+    research_id: uuid.UUID,
+    service: ResearchService = Depends(_service),
+) -> ResearchPerformanceResponse:
+    """Return the run timing (start, complete, duration) for a research (RDA-051)."""
+    try:
+        research = service.get(research_id)
+    except ResearchNotFoundError as exc:
+        raise _not_found(exc) from exc
+    return ResearchPerformanceResponse(
+        research_id=research.id,
+        started_at=research.started_at,
+        completed_at=research.completed_at,
+        duration_seconds=research.duration_seconds,
+    )

@@ -56,12 +56,27 @@ class Research(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    # Performance evaluation (RDA-051). Set when a workflow run starts and
+    # completes; both are null until the first run.
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     documents: Mapped[list["Document"]] = relationship(  # noqa: F821
         "Document",
         back_populates="research",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def duration_seconds(self) -> float | None:
+        """Wall-clock duration of the last run, or None if not completed."""
+        if self.started_at is None or self.completed_at is None:
+            return None
+        return (self.completed_at - self.started_at).total_seconds()
 
     def __repr__(self) -> str:  # pragma: no cover - debug helper
         return f"<Research id={self.id!s} title={self.title!r} status={self.status.value}>"

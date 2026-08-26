@@ -59,6 +59,26 @@ class Settings(BaseSettings):
     # evidence/synthesis steps).
     LLM_MODEL: str = "gpt-4o-mini"
 
+    # Cost evaluation (RDA-050). Explicit per-model pricing in USD per 1k
+    # tokens. Prices are estimates for cost reporting only, never billing.
+    # Keep them here (config), not hardcoded, so they can be updated.
+    LLM_PRICING: dict[str, dict[str, float]] = {
+        "gpt-4": {"input": 0.03 / 1000, "output": 0.06 / 1000},
+        "gpt-4o": {"input": 0.0025 / 1000, "output": 0.01 / 1000},
+        "gpt-4o-mini": {"input": 0.00015 / 1000, "output": 0.0006 / 1000},
+        "gpt-3.5-turbo": {"input": 0.0015 / 1000, "output": 0.002 / 1000},
+    }
+
+    # Cost evaluation (RDA-050). Per-search-call cost in USD per provider.
+    # Free providers are 0.0 and are never charged.
+    SEARCH_PRICING: dict[str, float] = {
+        "openalex": 0.0,
+        "crossref": 0.0,
+        "arxiv": 0.0,
+        "semantic_scholar": 0.0,
+        "pubmed": 0.0,
+    }
+
     # Planning (RDA-030). Bounds for the number of tasks a plan may contain.
     PLANNING_MIN_TASKS: int = 3
     PLANNING_MAX_TASKS: int = 10

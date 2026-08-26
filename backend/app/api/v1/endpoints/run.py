@@ -1,11 +1,15 @@
 """REST endpoints for workflow execution (RDA-033)."""
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from app.db.session import get_db
 from app.services.orchestration.exceptions import OrchestrationError
 from app.services.orchestration.orchestrator import ResearchOrchestrator
+from app.services.research_service import ResearchService
 from app.services.workflow.state import ResearchWorkflowState, WorkflowStage
 
 
@@ -28,8 +32,22 @@ def _orchestrator() -> ResearchOrchestrator:
 async def run_workflow(
     research_id: uuid.UUID,
     orchestrator: ResearchOrchestrator = Depends(_orchestrator),
+    db: Session = Depends(get_db),
 ) -> ResearchWorkflowState:
-    return await orchestrator.run(research_id)
+    """Run the workflow, recording start/complete timing on the Research.
+
+    Timing persistence is best-effort: when the research does not exist in
+    the database (e.g. in-memory orchestration tests), the run still proceeds
+    without persisting timing.
+    """
+    service = ResearchService(db)
+    research = service.repository.get(research_id)
+    if research is not None:
+        service.repository.update(research, started_at=datetime.now(UTC))
+    state = await orchestrator.run(research_id)
+    if research is not None:
+        service.repository.update(research, completed_at=datetime.now(UTC))
+    return state
 
 
 @router.get("/{research_id}/status", response_model=WorkflowStatusResponse)

@@ -40,12 +40,17 @@ def test_column_definitions() -> None:
         "status",
         "created_at",
         "updated_at",
+        "started_at",
+        "completed_at",
     }
     assert table.c.id.primary_key
     assert isinstance(table.c.title.type, String)
     assert table.c.title.type.length == 200
     for name in ("title", "objective", "question", "status", "created_at", "updated_at"):
         assert table.c[name].nullable is False
+    # RDA-051 timing columns are nullable until the first run.
+    assert table.c.started_at.nullable is True
+    assert table.c.completed_at.nullable is True
     assert table.c.status.type.enums == ["DRAFT", "READY"]
     assert table.c.created_at.type.timezone is True
     assert table.c.updated_at.type.timezone is True
@@ -166,5 +171,7 @@ def test_database_schema_matches_model(pg_session: Session) -> None:
         "status",
         "created_at",
         "updated_at",
+        "started_at",
+        "completed_at",
     }
     assert insp.get_pk_constraint("researches")["constrained_columns"] == ["id"]
