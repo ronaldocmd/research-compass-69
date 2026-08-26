@@ -190,6 +190,24 @@ input, textarea, select { background: var(--rda-surface); border: 1px solid var(
 .claims-unavailable { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-top: 52px; padding: 75px 24px; text-align: center; }
 .claims-unavailable h2 { color: var(--rda-ink); font-family: Georgia, "Times New Roman", serif; font-size: 2rem; letter-spacing: 0; text-transform: none; }
 .claims-unavailable.compact { margin-top: 32px; padding: 45px 24px; }
+.evidence-page { padding-top: 34px; }
+.evidence-navigation { display: flex; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.72rem; gap: 20px; text-transform: uppercase; }
+.evidence-navigation a { text-decoration: none; }
+.evidence-navigation a:hover { color: var(--rda-accent); }
+.evidence-header { border-bottom: 1px solid var(--rda-ink); margin-top: 24px; padding-bottom: 32px; }
+.evidence-header p:last-child { font-size: 1.05rem; }
+.evidence-list { margin-top: 32px; max-width: 980px; }
+.evidence-card { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-bottom: 18px; padding: 22px; }
+.evidence-card-top { align-items: center; display: flex; justify-content: space-between; }
+.evidence-card blockquote { border-left: 4px solid var(--rda-accent); color: var(--rda-ink); font-size: 1.2rem; line-height: 1.55; margin: 22px 0; padding: 5px 18px; }
+.provenance-grid { border-top: 1px solid var(--rda-line); display: grid; gap: 15px 20px; grid-template-columns: repeat(3, 1fr); margin: 0; padding-top: 18px; }
+.provenance-grid div { min-width: 0; }
+.provenance-grid dt { color: var(--rda-muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.66rem; text-transform: uppercase; }
+.provenance-grid dd { font-size: 0.88rem; margin: 7px 0 0; overflow-wrap: anywhere; }
+.provenance-grid a { color: var(--rda-accent); text-decoration: none; }
+.evidence-unavailable { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-top: 52px; padding: 75px 24px; text-align: center; }
+.evidence-unavailable h2 { color: var(--rda-ink); font-family: Georgia, "Times New Roman", serif; font-size: 2rem; letter-spacing: 0; text-transform: none; }
+.evidence-unavailable.compact { margin-top: 32px; padding: 45px 24px; }
 .plan-page { padding-top: 34px; }
 .plan-header { align-items: flex-start; display: flex; justify-content: space-between; gap: 30px; }
 .plan-header > div > p:last-child { font-size: 1.05rem; }
@@ -269,4 +287,11 @@ input, textarea, select { background: var(--rda-surface); border: 1px solid var(
   .claim-text { font-size: 1.1rem; }
   .confidence-line { gap: 8px; }
   .claims-unavailable h2 { font-size: 1.7rem; }
+  .evidence-page { padding-top: 24px; }
+  .evidence-header h1 { font-size: 3.1rem; }
+  .evidence-card { padding: 17px; }
+  .evidence-card-top { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .evidence-card blockquote { font-size: 1.05rem; margin: 18px 0; padding-left: 13px; }
+  .provenance-grid { grid-template-columns: repeat(2, 1fr); }
+  .evidence-unavailable h2 { font-size: 1.7rem; }
 }
