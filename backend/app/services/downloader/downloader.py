@@ -20,6 +20,12 @@ from app.services.downloader.exceptions import (
     InvalidContentTypeError,
 )
 from app.services.downloader.schemas import DownloadResult
+from app.services.downloader.ssrf import SSRFGuard
+
+# Maximum number of redirects the downloader will follow. httpx's default is
+# 20; a lower bound reduces the attack surface for redirect chains that hop
+# through internal addresses.
+MAX_REDIRECTS = 5
 
 
 class DocumentDownloader:
@@ -32,6 +38,7 @@ class DocumentDownloader:
         max_size: int | None = None,
         allowed_content_types: list[str] | None = None,
         client: httpx.Client | None = None,
+        ssrf_guard: SSRFGuard | None = None,
     ) -> None:
         self._timeout = timeout if timeout is not None else settings.DOWNLOAD_TIMEOUT_SECONDS
         self._max_size = max_size if max_size is not None else settings.DOWNLOAD_MAX_SIZE_BYTES
@@ -44,6 +51,7 @@ class DocumentDownloader:
             )
         ]
         self._client = client
+        self._ssrf_guard = ssrf_guard or SSRFGuard()
 
     def download(self, url: str) -> DownloadResult:
         """Download ``url`` and return its raw bytes plus metadata.
@@ -62,11 +70,20 @@ class DocumentDownloader:
             InvalidContentTypeError: The Content-Type is not allowed.
             DownloadError: Any other transport failure.
         """
+        self._ssrf_guard.validate(url)
         try:
             if self._client is not None:
-                response = self._client.get(url, timeout=self._timeout)
+                response = self._client.get(
+                    url, timeout=self._timeout, follow_redirects=True
+                )
             else:
-                response = httpx.get(url, timeout=self._timeout)
+                response = httpx.get(
+                    url,
+                    timeout=self._timeout,
+                    follow_redirects=True,
+                    max_redirects=MAX_REDIRECTS,
+                    transport=self._make_transport(),
+                )
         except httpx.TimeoutException as exc:
             raise DownloadTimeoutError(f"Download timed out for {url}") from exc
         except httpx.HTTPError as exc:
@@ -123,3 +140,20 @@ class DocumentDownloader:
             return int(raw)
         except ValueError:
             return None
+
+    def _make_transport(self) -> httpx.BaseTransport:
+        """Return a transport that re-validates every request URL.
+
+        httpx calls the transport once per hop when following redirects, so
+        wrapping the default transport here ensures a redirect that points at
+        an internal address is rejected just like the initial URL.
+        """
+        inner = httpx.HTTPTransport()
+        guard = self._ssrf_guard
+
+        class _SSRFTransport(httpx.BaseTransport):
+            def handle_request(self, request: httpx.Request) -> httpx.Response:
+                guard.validate(str(request.url))
+                return inner.handle_request(request)
+
+        return _SSRFTransport()

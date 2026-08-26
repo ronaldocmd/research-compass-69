@@ -16,13 +16,22 @@ from app.services.downloader.exceptions import (
     InvalidContentTypeError,
 )
 from app.services.downloader.schemas import DownloadResult
+from app.services.downloader.ssrf import SSRFBlockedError, SSRFGuard
 
 PDF_BYTES = b"%PDF-1.4 fake pdf content"
+
+
+class _PermissiveGuard(SSRFGuard):
+    """Allows every URL; used so tests never depend on real DNS."""
+
+    def validate(self, url: str) -> None:
+        return None
 
 
 def make_downloader(handler, **kwargs) -> DocumentDownloader:
     transport = httpx.MockTransport(handler)
     client = httpx.Client(transport=transport)
+    kwargs.setdefault("ssrf_guard", _PermissiveGuard())
     return DocumentDownloader(client=client, **kwargs)
 
 
@@ -183,3 +192,77 @@ def test_download_wraps_other_http_errors_as_download_error() -> None:
     downloader = make_downloader(handler)
     with pytest.raises(DownloadError):
         downloader.download("https://example.org/paper.pdf")
+
+
+# --- SSRF protection (RDA-053) ---------------------------------------------
+
+
+def _guard_with_resolver(resolver) -> SSRFGuard:
+    return SSRFGuard(resolver=resolver)
+
+
+def test_ssrf_guard_rejects_non_http_scheme() -> None:
+    guard = _guard_with_resolver(lambda host: ["93.184.216.34"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("ftp://example.org/paper.pdf")
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("file:///etc/passwd")
+
+
+def test_ssrf_guard_rejects_loopback() -> None:
+    guard = _guard_with_resolver(lambda host: ["127.0.0.1"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("http://localhost/paper.pdf")
+
+
+def test_ssrf_guard_rejects_cloud_metadata_address() -> None:
+    guard = _guard_with_resolver(lambda host: ["169.254.169.254"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("http://169.254.169.254/latest/meta-data/")
+
+
+def test_ssrf_guard_rejects_private_ipv4() -> None:
+    guard = _guard_with_resolver(lambda host: ["10.0.0.5"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("http://10.0.0.5/paper.pdf")
+
+
+def test_ssrf_guard_rejects_private_ipv6() -> None:
+    guard = _guard_with_resolver(lambda host: ["fd00::1"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("http://[fd00::1]/paper.pdf")
+
+
+def test_ssrf_guard_rejects_ipv4_mapped_ipv6() -> None:
+    guard = _guard_with_resolver(lambda host: ["::ffff:127.0.0.1"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("http://[::ffff:127.0.0.1]/paper.pdf")
+
+
+def test_ssrf_guard_accepts_public_ip() -> None:
+    guard = _guard_with_resolver(lambda host: ["93.184.216.34"])
+    guard.validate("https://example.org/paper.pdf")
+
+
+def test_ssrf_guard_rejects_when_any_resolved_address_is_blocked() -> None:
+    guard = _guard_with_resolver(lambda host: ["93.184.216.34", "192.168.1.1"])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("https://example.org/paper.pdf")
+
+
+def test_ssrf_guard_rejects_unresolvable_host() -> None:
+    guard = _guard_with_resolver(lambda host: [])
+    with pytest.raises(SSRFBlockedError):
+        guard.validate("https://no-such-host.invalid/paper.pdf")
+
+
+def test_download_rejects_blocked_url_before_any_request() -> None:
+    """The downloader must not even attempt a request to a blocked URL."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("transport should not be called for a blocked URL")
+
+    guard = _guard_with_resolver(lambda host: ["169.254.169.254"])
+    downloader = make_downloader(handler, ssrf_guard=guard)
+    with pytest.raises(SSRFBlockedError):
+        downloader.download("http://169.254.169.254/latest/meta-data/")
