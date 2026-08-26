@@ -6,7 +6,7 @@ the model relies on PostgreSQL UUID and native enum types.
 """
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import String, create_engine, inspect, text
@@ -42,6 +42,7 @@ def test_column_definitions() -> None:
         "updated_at",
         "started_at",
         "completed_at",
+        "summary",
     }
     assert table.c.id.primary_key
     assert isinstance(table.c.title.type, String)
@@ -51,6 +52,8 @@ def test_column_definitions() -> None:
     # RDA-051 timing columns are nullable until the first run.
     assert table.c.started_at.nullable is True
     assert table.c.completed_at.nullable is True
+    # RDA-052 synthesis output is nullable until the workflow completes.
+    assert table.c.summary.nullable is True
     assert table.c.status.type.enums == ["DRAFT", "READY"]
     assert table.c.created_at.type.timezone is True
     assert table.c.updated_at.type.timezone is True
@@ -68,12 +71,9 @@ def pg_session() -> Session:
     engine = create_engine(PG_URL, future=True)
     with engine.begin() as conn:
         conn.execute(text('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
-    # "documents" is created too: it has a FK to "researches" (RDA-017), so
-    # it must exist before "researches" and be dropped first on teardown.
-    Base.metadata.create_all(
-        engine,
-        tables=[Base.metadata.tables["researches"], Base.metadata.tables["documents"]],
-    )
+    # Create the full schema (the test database is dedicated to this project)
+    # so FK-dependent tables and the RDA-052 summary column are present.
+    Base.metadata.create_all(engine)
     factory: sessionmaker[Session] = sessionmaker(bind=engine, future=True)
     session = factory()
     try:
@@ -81,10 +81,10 @@ def pg_session() -> Session:
     finally:
         session.rollback()
         session.close()
-        Base.metadata.drop_all(
-            engine,
-            tables=[Base.metadata.tables["documents"], Base.metadata.tables["researches"]],
-        )
+        # The test database is dedicated to this project, so dropping all
+        # tables (in FK order) is safe and avoids DependentObjectsStillExist
+        # from the tables added in RDA-022/049/050/051.
+        Base.metadata.drop_all(engine)
         ResearchStatus  # keep import used
         with engine.begin() as conn:
             conn.execute(text("DROP TYPE IF EXISTS research_status"))
@@ -103,7 +103,9 @@ def test_create_valid_research_generates_uuid_and_timestamps(pg_session: Session
     assert r.status is ResearchStatus.DRAFT
     assert isinstance(r.created_at, datetime) and r.created_at.tzinfo is not None
     assert isinstance(r.updated_at, datetime)
-    assert r.created_at <= datetime.now(timezone.utc)
+    # The DB server's now() may be slightly ahead of the app clock (clock
+    # skew), so allow a small tolerance instead of a strict <= comparison.
+    assert r.created_at <= datetime.now(timezone.utc) + timedelta(seconds=5)
 
 
 @requires_pg
@@ -173,5 +175,6 @@ def test_database_schema_matches_model(pg_session: Session) -> None:
         "updated_at",
         "started_at",
         "completed_at",
+        "summary",
     }
     assert insp.get_pk_constraint("researches")["constrained_columns"] == ["id"]

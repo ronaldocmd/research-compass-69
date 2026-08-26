@@ -64,6 +64,8 @@ class Research(Base):
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    # Synthesis output (RDA-052). Persisted when the workflow completes.
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
     documents: Mapped[list["Document"]] = relationship(  # noqa: F821
         "Document",

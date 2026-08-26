@@ -51,6 +51,19 @@ embeddings, Redis ou LangGraph).
 - Confirmado que `.env` está no `.gitignore` e que nenhum segredo real foi
   adicionado.
 
+## Limitação conhecida (C3) — conflito de hostname `.env` vs Docker
+
+O `.env` define `DATABASE_URL` com `localhost:5432` (para desenvolvimento
+local). O `docker-compose.yml` tenta injetar `postgres:5432` no backend via o
+default `${DATABASE_URL:-...@postgres:5432/...}`, mas esse default **não**
+prevalece quando `DATABASE_URL` já está definido no `.env` — o valor
+`localhost` vence e o backend em container tenta conectar no próprio container
+em vez do serviço `postgres`, quebrando a conexão.
+
+Não corrigido neste ticket (RDA-052). Para rodar via Docker, comente/remova a
+linha `DATABASE_URL` do `.env` (deixando o default do compose valer) ou defina
+`DATABASE_URL` explicitamente com o hostname `postgres` ao subir o compose.
+
 ## Não executado (limitação de ambiente)
 
 O ambiente do Lovable não possui Docker daemon, runtime Python nem servidor
