@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ResearchDashboard } from "@/components/ResearchDashboard";
 import { ApiError, listResearches } from "@/lib/api";
 import type { Research } from "@/types/research";
 
@@ -9,11 +10,6 @@ export const metadata = {
   title: "Pesquisas — Research Discovery Agent",
   description: "Dashboard de pesquisas: listar, criar, editar e excluir.",
 };
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR");
-}
 
 export default async function ResearchesPage() {
   let researches: Research[] = [];
@@ -29,8 +25,9 @@ export default async function ResearchesPage() {
     <main className="wide">
       <header className="row between">
         <div>
+          <p className="eyebrow">Research workspace / 038</p>
           <h1>Pesquisas</h1>
-          <p>Dashboard conectado à Research API (/api/v1/researches).</p>
+          <p className="page-intro">Um lugar calmo para transformar perguntas em descobertas.</p>
         </div>
         <Link href="/researches/new" className="btn primary">
           Nova pesquisa
@@ -42,45 +39,8 @@ export default async function ResearchesPage() {
           <p className="alert">{error}</p>
           <p>Verifique se o backend FastAPI está em execução e se a URL da API está configurada.</p>
         </div>
-      ) : researches.length === 0 ? (
-        <div className="card empty">
-          <p>Nenhuma pesquisa cadastrada ainda.</p>
-          <Link href="/researches/new" className="btn primary">
-            Criar a primeira pesquisa
-          </Link>
-        </div>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Título</th>
-              <th>Status</th>
-              <th>Criada em</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {researches.map((research) => (
-              <tr key={research.id}>
-                <td>
-                  <Link href={`/researches/${research.id}`}>{research.title}</Link>
-                </td>
-                <td>
-                  <span className={`badge ${research.status.toLowerCase()}`}>{research.status}</span>
-                </td>
-                <td>{formatDate(research.created_at)}</td>
-                <td className="row">
-                  <Link href={`/researches/${research.id}`} className="btn">
-                    Detalhe
-                  </Link>
-                  <Link href={`/researches/${research.id}/edit`} className="btn">
-                    Editar
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ResearchDashboard researches={researches} />
       )}
     </main>
   );
