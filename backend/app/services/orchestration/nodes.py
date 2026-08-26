@@ -22,6 +22,7 @@ from app.services.workflow.state import (
     WorkflowError,
     WorkflowStage,
 )
+from app.services.workflow.retry_handler import RetryHandler, RetryPolicy
 from app.services.workflow.state_manager import WorkflowStateManager
 
 _SELECTION_NAMESPACE = uuid.UUID("8f1c2a3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b")
@@ -51,6 +52,8 @@ class ResearchNodes:
         research_loader=None,
         summary_saver=None,
         max_documents: int = 20,
+        retry_handler: RetryHandler | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self._planner = planner
         self._search = search
@@ -62,11 +65,14 @@ class ResearchNodes:
         self._research_loader = research_loader
         self._summary_saver = summary_saver
         self._max_documents = max_documents
+        self._retry_handler = retry_handler or RetryHandler(retry_policy)
 
     # --- helpers -------------------------------------------------------------
 
     @staticmethod
-    def _record_error(state, stage, message, *, severity=ErrorSeverity.PROCESSING, retryable=False):
+    def _record_error(
+        state, stage, message, *, severity=ErrorSeverity.PROCESSING, retryable=False, context=None
+    ):
         error = WorkflowError(
             error_id=uuid.uuid4(),
             stage=stage,
@@ -74,9 +80,68 @@ class ResearchNodes:
             severity=severity,
             timestamp=datetime.now(UTC),
             retryable=retryable,
-            context={},
+            context=context or {},
         )
         return WorkflowStateManager.add_error(state, error)
+
+    async def _execute_external(
+        self, state, stage, func, *args, terminal_on_failure=True, **kwargs
+    ):
+        """Run one external operation and convert its final failure to state."""
+        if state.retry_count >= 10:
+            state = self._record_error(
+                state, stage, "Global retry limit reached",
+                severity=ErrorSeverity.PERMANENT,
+                context={"retry_count": state.retry_count, "global_limit": 10},
+            )
+            failed_state = WorkflowStateManager.transition(state, WorkflowStage.FAILED)
+            return (failed_state if terminal_on_failure else state), None, True
+
+        remaining_attempts = min(self._retry_handler.policy.max_attempts, 10 - state.retry_count)
+        policy = self._retry_handler.policy.model_copy(update={"max_attempts": remaining_attempts})
+        try:
+            result = await self._retry_handler.execute_with_retry(
+                func, *args, policy=policy, **kwargs
+            )
+        except Exception as exc:
+            retries = self._retry_handler.last_retry_count
+            state = state.model_copy(update={"retry_count": state.retry_count + retries})
+            severity = self._retry_handler.last_severity or ErrorSeverity.PERMANENT
+            state = self._record_error(
+                state, stage, str(exc),
+                severity=severity,
+                retryable=severity in policy.retryable_severities,
+                context={
+                    "attempts": self._retry_handler.last_attempts,
+                    "retries": retries,
+                    "retry_count": state.retry_count,
+                },
+            )
+            failed_state = WorkflowStateManager.transition(state, WorkflowStage.FAILED)
+            return (failed_state if terminal_on_failure else state), None, True
+
+        retries = self._retry_handler.last_retry_count
+        state = state.model_copy(update={"retry_count": state.retry_count + retries})
+        if retries:
+            state = self._record_error(
+                state, stage, "Operation succeeded after retry",
+                severity=self._retry_handler.last_severity or ErrorSeverity.TRANSIENT,
+                retryable=True,
+                context={
+                    "attempts": self._retry_handler.last_attempts,
+                    "retries": retries,
+                    "retry_count": state.retry_count,
+                },
+            )
+        if state.retry_count >= 10:
+            state = self._record_error(
+                state, stage, "Global retry limit reached",
+                severity=ErrorSeverity.PERMANENT,
+                context={"retry_count": state.retry_count, "global_limit": 10},
+            )
+            failed_state = WorkflowStateManager.transition(state, WorkflowStage.FAILED)
+            return (failed_state if terminal_on_failure else state), None, True
+        return state, result, False
 
     @staticmethod
     def _add_llm_calls(state, count=1):
@@ -105,29 +170,26 @@ class ResearchNodes:
         state = WorkflowStateManager.transition(state, WorkflowStage.PLANNING)
         if self._planner is None or self._research_loader is None:
             return state
-        try:
-            research = self._research_loader(state.research_id)
-        except Exception as exc:
-            return self._record_error(
-                state, WorkflowStage.PLANNING, f"Failed to load research: {exc}"
-            )
+        state, research, failed = await self._execute_external(
+            state, WorkflowStage.PLANNING, self._research_loader, state.research_id
+        )
+        if failed:
+            return state
         if research is None:
             return self._record_error(
                 state, WorkflowStage.PLANNING, "Research not found",
                 severity=ErrorSeverity.PERMANENT,
             )
-        try:
-            plan = await self._planner.plan(
-                ResearchPlanInput(
-                    research_id=state.research_id,
-                    objective=research.objective,
-                    question=research.question,
-                )
-            )
-        except (InvalidPlanError, PlanningError) as exc:
-            return self._record_error(
-                state, WorkflowStage.PLANNING, f"Planning failed: {exc}"
-            )
+        state, plan, failed = await self._execute_external(
+            state, WorkflowStage.PLANNING, self._planner.plan,
+            ResearchPlanInput(
+                research_id=state.research_id,
+                objective=research.objective,
+                question=research.question,
+            ),
+        )
+        if failed:
+            return state
         state = state.model_copy(update={"plan_id": plan.plan_id, "tasks": plan.tasks})
         state = self._add_llm_calls(state)
         return WorkflowStateManager.transition(state, WorkflowStage.SEARCHING)
@@ -144,13 +206,13 @@ class ResearchNodes:
         results = list(state.search_results)
         search_calls = 0
         for query in queries:
-            try:
-                results.extend(self._search.search(query))
-                search_calls += 1
-            except Exception as exc:
-                state = self._record_error(
-                    state, WorkflowStage.SEARCHING, f"Search failed for '{query}': {exc}"
-                )
+            state, query_results, failed = await self._execute_external(
+                state, WorkflowStage.SEARCHING, self._search.search, query
+            )
+            if failed:
+                return state
+            results.extend(query_results)
+            search_calls += 1
         state = state.model_copy(update={"search_results": results})
         state = self._add_search_calls(state, search_calls)
         return WorkflowStateManager.transition(state, WorkflowStage.SELECTING)
@@ -188,18 +250,18 @@ class ResearchNodes:
         for doc_id in state.selected_documents:
             if doc_id in processed or doc_id in failed:
                 continue
-            try:
-                chunks = self._processor(doc_id)
-                processed.append(doc_id)
-                chunk_ids.extend(chunks)
-                status[doc_id] = "processed"
-                ops += 1
-            except Exception as exc:
+            state, chunks, failed_operation = await self._execute_external(
+                state, WorkflowStage.PROCESSING, self._processor, doc_id,
+                terminal_on_failure=False,
+            )
+            if failed_operation:
                 failed.append(doc_id)
                 status[doc_id] = "failed"
-                state = self._record_error(
-                    state, WorkflowStage.PROCESSING, f"Processing {doc_id} failed: {exc}"
-                )
+                continue
+            processed.append(doc_id)
+            chunk_ids.extend(chunks)
+            status[doc_id] = "processed"
+            ops += 1
         state = state.model_copy(
             update={
                 "processed_document_ids": processed,
@@ -225,20 +287,30 @@ class ResearchNodes:
         for task in state.tasks:
             if task.task_type != TaskType.EXTRACT:
                 continue
-            try:
-                chunks = self._retriever.retrieve(task.title).chunks
-                extraction = self._claim_extractor.extract(chunks, task.title)
-                llm_calls += 1
-                claims.extend(extraction.claims)
-                for claim in extraction.claims:
-                    evidence_items.extend(
-                        self._evidence_extractor.extract(claim, chunks).evidence
-                    )
-                    llm_calls += 1
-            except Exception as exc:
-                state = self._record_error(
-                    state, WorkflowStage.EXTRACTING, f"Evidence extraction failed: {exc}"
+            state, retrieval, failed_operation = await self._execute_external(
+                state, WorkflowStage.EXTRACTING, self._retriever.retrieve, task.title,
+                terminal_on_failure=False,
+            )
+            if failed_operation:
+                continue
+            chunks = retrieval.chunks
+            state, extraction, failed_operation = await self._execute_external(
+                state, WorkflowStage.EXTRACTING, self._claim_extractor.extract,
+                chunks, task.title, terminal_on_failure=False,
+            )
+            if failed_operation:
+                continue
+            llm_calls += 1
+            claims.extend(extraction.claims)
+            for claim in extraction.claims:
+                state, evidence, failed_operation = await self._execute_external(
+                    state, WorkflowStage.EXTRACTING, self._evidence_extractor.extract,
+                    claim, chunks, terminal_on_failure=False,
                 )
+                if failed_operation:
+                    continue
+                evidence_items.extend(evidence.evidence)
+                llm_calls += 1
         state = state.model_copy(
             update={"claims": claims, "evidence_items": evidence_items}
         )
@@ -250,23 +322,20 @@ class ResearchNodes:
         if self._llm is None:
             state = state.model_copy(update={"completed_at": datetime.now(UTC)})
             return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
-        try:
-            response = await asyncio.to_thread(
-                self._llm.complete, self._build_synthesis_prompt(state), SynthesisResponse
-            )
-        except (InvalidLLMResponseError, LLMProviderError) as exc:
-            return self._record_error(
-                state, WorkflowStage.SYNTHESIZING, f"Synthesis failed: {exc}"
-            )
+        state, response, failed = await self._execute_external(
+            state, WorkflowStage.SYNTHESIZING,
+            asyncio.to_thread,
+            self._llm.complete, self._build_synthesis_prompt(state), SynthesisResponse,
+        )
+        if failed:
+            return state
         state = self._add_llm_calls(state)
         summary = response.summary if isinstance(response, SynthesisResponse) else ""
         if summary and self._summary_saver is not None:
-            try:
-                self._summary_saver(state.research_id, summary)
-            except Exception as exc:
-                state = self._record_error(
-                    state, WorkflowStage.SYNTHESIZING, f"Failed to save summary: {exc}"
-                )
+            state, _, _ = await self._execute_external(
+                state, WorkflowStage.SYNTHESIZING, self._summary_saver,
+                state.research_id, summary, terminal_on_failure=False,
+            )
         state = state.model_copy(update={"completed_at": datetime.now(UTC)})
         return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
 
