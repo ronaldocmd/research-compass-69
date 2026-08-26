@@ -159,6 +159,37 @@ input, textarea, select { background: var(--rda-surface); border: 1px solid var(
 .chunk-list p, .related-list p { color: var(--rda-ink); line-height: 1.65; margin: 8px 0 0; max-width: 800px; }
 .document-unavailable { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-top: 52px; padding: 75px 24px; text-align: center; }
 .document-unavailable h1 { font-size: 3rem; }
+.claims-page { padding-top: 34px; }
+.claims-header { border-bottom: 1px solid var(--rda-ink); padding-bottom: 32px; }
+.claims-header p:last-child { font-size: 1.05rem; }
+.claims-list { margin-top: 32px; max-width: 900px; }
+.claim-card { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-bottom: 16px; padding: 22px; }
+.claim-card-top { align-items: center; display: flex; justify-content: space-between; }
+.claim-id { color: var(--rda-muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.68rem; text-transform: uppercase; }
+.validation-badge { border: 1px solid var(--rda-line); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.66rem; padding: 5px 8px; text-transform: uppercase; }
+.validation-badge.validated { background: #edf3d8; border-color: #9caf61; color: #4d6821; }
+.validation-badge.rejected { background: #f9e9e4; border-color: #d79a8d; color: #8d3428; }
+.validation-badge.uncertain { background: #f5efd5; border-color: #d3bf69; color: #756017; }
+.claim-text { color: var(--rda-ink); font-size: 1.25rem; line-height: 1.45; margin: 22px 0; max-width: 780px; }
+.confidence-line { align-items: center; display: flex; gap: 12px; max-width: 520px; }
+.confidence-line > span { color: var(--rda-muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.68rem; text-transform: uppercase; }
+.confidence-line strong { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.78rem; font-weight: 400; }
+.confidence-line strong.high { color: #4d6821; }
+.confidence-line strong.medium { color: #756017; }
+.confidence-line strong.low { color: #8d3428; }
+.confidence-track { background: #e0e1d7; flex: 1; height: 7px; }
+.confidence-track span { display: block; height: 100%; }
+.confidence-track span.high { background: #729b38; }
+.confidence-track span.medium { background: #d3bf69; }
+.confidence-track span.low { background: var(--rda-accent); }
+.claim-evidence { border-top: 1px solid var(--rda-line); display: flex; flex-direction: column; gap: 9px; margin-top: 24px; padding-top: 16px; }
+.claim-evidence a { border-bottom: 1px solid var(--rda-line); font-size: 0.87rem; padding: 8px 0; text-decoration: none; }
+.claim-evidence a:hover { color: var(--rda-accent); }
+.claim-evidence small { color: var(--rda-muted); display: block; font-size: 0.72rem; margin-top: 5px; }
+.claim-document { color: var(--rda-accent); display: inline-block; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.72rem; margin-top: 18px; text-decoration: none; }
+.claims-unavailable { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-top: 52px; padding: 75px 24px; text-align: center; }
+.claims-unavailable h2 { color: var(--rda-ink); font-family: Georgia, "Times New Roman", serif; font-size: 2rem; letter-spacing: 0; text-transform: none; }
+.claims-unavailable.compact { margin-top: 32px; padding: 45px 24px; }
 .plan-page { padding-top: 34px; }
 .plan-header { align-items: flex-start; display: flex; justify-content: space-between; gap: 30px; }
 .plan-header > div > p:last-child { font-size: 1.05rem; }
@@ -231,4 +262,11 @@ input, textarea, select { background: var(--rda-surface); border: 1px solid var(
   .document-metadata { gap: 20px 0; grid-template-columns: repeat(2, 1fr); }
   .document-metadata div:nth-child(odd) { border-left: 0; padding-left: 0; }
   .document-unavailable h1 { font-size: 2.4rem; }
+  .claims-page { padding-top: 24px; }
+  .claims-header h1 { font-size: 3.1rem; }
+  .claim-card { padding: 17px; }
+  .claim-card-top { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .claim-text { font-size: 1.1rem; }
+  .confidence-line { gap: 8px; }
+  .claims-unavailable h2 { font-size: 1.7rem; }
 }
