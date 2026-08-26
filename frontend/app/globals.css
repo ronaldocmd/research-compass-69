@@ -115,6 +115,26 @@ input, textarea, select { background: var(--rda-surface); border: 1px solid var(
 .dashboard-nav a span { color: var(--rda-accent); }
 .nav-disabled { color: var(--rda-muted); }
 .nav-disabled small { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.62rem; text-transform: uppercase; }
+.documents-page { padding-top: 34px; }
+.documents-header { border-bottom: 1px solid var(--rda-ink); padding-bottom: 32px; }
+.documents-header p:last-child { font-size: 1.05rem; }
+.documents-toolbar { align-items: center; border-bottom: 1px solid var(--rda-line); display: flex; gap: 10px; padding: 18px 0; }
+.documents-toolbar .search-field { flex: 1; max-width: none; }
+.documents-toolbar select { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.7rem; padding: 10px; text-transform: uppercase; }
+.documents-list { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-top: 24px; }
+.document-row { align-items: start; border-bottom: 1px solid var(--rda-line); display: grid; gap: 15px; grid-template-columns: minmax(0, 1fr) 110px 60px 110px; padding: 20px; }
+.document-row:last-child { border-bottom: 0; }
+.document-main { min-width: 0; }
+.document-title { display: block; font-size: 1.1rem; text-decoration: none; }
+.document-title:hover { color: var(--rda-accent); }
+.document-main p { font-size: 0.82rem; margin: 7px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-source, .document-year { color: var(--rda-muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.72rem; text-transform: uppercase; }
+.document-meta { grid-column: 1 / -1; display: flex; gap: 18px; }
+.document-meta a { color: var(--rda-accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-meta small { color: var(--rda-muted); font-size: 0.75rem; }
+.documents-unavailable { background: var(--rda-surface); border: 1px solid var(--rda-line); margin-top: 52px; padding: 75px 24px; text-align: center; }
+.documents-unavailable h2 { color: var(--rda-ink); font-family: Georgia, "Times New Roman", serif; font-size: 2rem; letter-spacing: 0; text-transform: none; }
+.documents-unavailable.compact { margin-top: 32px; padding: 45px 24px; }
 .plan-page { padding-top: 34px; }
 .plan-header { align-items: flex-start; display: flex; justify-content: space-between; gap: 30px; }
 .plan-header > div > p:last-child { font-size: 1.05rem; }
@@ -173,4 +193,12 @@ input, textarea, select { background: var(--rda-surface); border: 1px solid var(
   .task-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
   .task-status { grid-column: 2; justify-self: start; }
   .plan-empty h1 { font-size: 2.4rem; }
+  .documents-page { padding-top: 24px; }
+  .documents-header h1 { font-size: 3.1rem; }
+  .documents-toolbar { align-items: stretch; flex-direction: column; }
+  .documents-toolbar select { width: 100%; }
+  .document-row { grid-template-columns: minmax(0, 1fr) auto; padding: 16px 12px; }
+  .document-source, .document-year { display: none; }
+  .document-meta { grid-column: 1 / -1; flex-wrap: wrap; gap: 8px; }
+  .documents-unavailable h2 { font-size: 1.7rem; }
 }

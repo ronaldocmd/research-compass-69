@@ -104,7 +104,7 @@ export function ResearchLiveDashboard({ research, initialWorkflow }: Props) {
           <span className="section-label">Explorar</span>
           <Link href={`/researches/${research.id}`}>Visão geral <span>→</span></Link>
           <Link href={`/researches/${research.id}/plan`}>Plano <span>→</span></Link>
-          <span className="nav-disabled">Documentos <small>Em breve</small></span>
+          <Link href={`/researches/${research.id}/documents`}>Documentos <span>→</span></Link>
           <span className="nav-disabled">Claims e evidências <small>Em breve</small></span>
           <span className="nav-disabled">Resumo <small>Em breve</small></span>
         </nav>
