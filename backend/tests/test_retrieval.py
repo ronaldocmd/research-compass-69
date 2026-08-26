@@ -219,3 +219,41 @@ def test_retrieval_config_defaults() -> None:
 
     assert settings.RETRIEVAL_TOP_K == 5
     assert settings.RETRIEVAL_MIN_SCORE == pytest.approx(0.7)
+
+
+def test_retrieve_matches_reference_cosine_similarity() -> None:
+    """Cached-norm scoring must equal the reference cosine_similarity (RDA-054)."""
+    provider = _FakeProvider(query_vector=[1.0, 0.0])
+    index = [
+        _chunk(embedding=[0.0, 1.0], text="perpendicular"),
+        _chunk(embedding=[1.0, 0.0], text="exact"),
+        _chunk(embedding=[1.0, 1.0], text="partial"),
+        _chunk(embedding=[0.5, 0.5], text="half"),
+    ]
+    retriever = DocumentRetriever(provider=provider, index=index, top_k=5, min_score=0.0)
+
+    result = retriever.retrieve("question")
+
+    query = provider._query_vector
+    for chunk in result.chunks:
+        source = next(c for c in index if c.chunk_id == chunk.chunk_id)
+        expected = cosine_similarity(query, source.embedding)
+        assert chunk.score == pytest.approx(expected)
+
+
+def test_retrieve_syncs_norm_cache_when_index_grows() -> None:
+    """Chunks appended after construction must be scored correctly (RDA-054)."""
+    provider = _FakeProvider(query_vector=[1.0, 0.0])
+    index = [_chunk(embedding=[1.0, 0.0], text="first")]
+    retriever = DocumentRetriever(provider=provider, index=index, top_k=5, min_score=0.0)
+
+    first = retriever.retrieve("question")
+    assert [c.text for c in first.chunks] == ["first"]
+
+    # The retriever shares the caller's index; grow it to simulate chunks
+    # being added as documents are processed (WorkflowServices.process).
+    index.append(_chunk(embedding=[0.0, 1.0], text="second"))
+    second = retriever.retrieve("question")
+
+    assert [c.text for c in second.chunks] == ["first", "second"]
+    assert second.chunks[1].score == pytest.approx(0.0)
