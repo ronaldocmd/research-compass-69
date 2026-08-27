@@ -1,0 +1,68 @@
+{
+  "audit": "RDA-057 evidence & claims",
+  "timestamp": "2026-08-27T16:33:19.333388+00:00",
+  "commit": "cfa6fc44e8ea28d93c59f9b89144664fd5b75224",
+  "llm_model": "gpt-4o-mini",
+  "scenarios": [
+    {
+      "id": "s1_direct_support",
+      "query": "What is the effect of LLM-based tutoring on student exam scores?",
+      "expected": "direct_support",
+      "claims": [
+        {
+          "claim_text": "LLM-based tutoring improved exam scores by 18% compared to traditional instruction.",
+          "chunk_ids": [
+            "3fc24150-728f-5b43-81c0-cd765377672b"
+          ],
+          "document_id": "4717f8cb-01d6-5e5c-9b2c-2e53932bdeeb",
+          "evidence": [
+            {
+              "status": "supported",
+              "text": "A randomized trial of 1,200 students found that LLM-based tutoring improved exam scores by 18% compared to traditional instruction.",
+              "chunk_id": "3fc24150-728f-5b43-81c0-cd765377672b",
+              "document_id": "4717f8cb-01d6-5e5c-9b2c-2e53932bdeeb",
+              "page_number": 1
+            }
+          ],
+          "final_status": "supported"
+        }
+      ]
+    },
+    {
+      "id": "s2_partial_support",
+      "query": "What is the effect of LLM-based tutoring on student exam scores?",
+      "expected": "partial_support",
+      "claims": []
+    },
+    {
+      "id": "s3_contradiction",
+      "query": "What is the effect of LLM-based tutoring on student exam scores?",
+      "expected": "contradiction",
+      "claims": [
+        {
+          "claim_text": "A meta-analysis found that LLM-based tutoring had no significant effect on student exam scores, with a pooled effect size near zero.",
+          "chunk_ids": [
+            "96f28a4e-9a4a-5be3-b785-f19844cc9715"
+          ],
+          "document_id": "3f8172e7-7b81-532b-ad97-dce3b950bbb7",
+          "evidence": [
+            {
+              "status": "supported",
+              "text": "A meta-analysis found that LLM-based tutoring had no significant effect on student exam scores, with a pooled effect size near zero.",
+              "chunk_id": "96f28a4e-9a4a-5be3-b785-f19844cc9715",
+              "document_id": "3f8172e7-7b81-532b-ad97-dce3b950bbb7",
+              "page_number": 1
+            }
+          ],
+          "final_status": "supported"
+        }
+      ]
+    },
+    {
+      "id": "s4_absent_info",
+      "query": "What is the effect of LLM-based tutoring on student exam scores?",
+      "expected": "absent_info",
+      "claims": []
+    }
+  ]
+}
