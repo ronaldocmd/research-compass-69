@@ -1,9 +1,10 @@
 """DTOs for confidence scoring (RDA-027)."""
 
+import uuid
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.claims.schemas import Claim
 from app.services.evidence.schemas import Evidence
@@ -22,6 +23,7 @@ class ConfidenceScore(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    confidence_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     level: ConfidenceLevel
     score: float  # 0.0 to 1.0, continuous
     reasoning: str  # human-readable explanation

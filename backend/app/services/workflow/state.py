@@ -16,8 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.search import NormalizedSearchResult
 from app.services.claims.schemas import Claim
+from app.services.confidence.schemas import ScoredClaim
 from app.services.evidence.schemas import Evidence
 from app.services.planning.schemas import PlanTask
+from app.services.provenance.schemas import ProvenanceChain
+from app.services.retrieval.schemas import RetrievedChunk
+from app.services.validation.schemas import ValidationResult
 
 
 class WorkflowStage(str, Enum):
@@ -119,6 +123,18 @@ class ResearchWorkflowState(BaseModel):
     chunk_ids: list[uuid.UUID] = Field(default_factory=list)
     claims: list[Claim] = Field(default_factory=list)
     evidence_items: list[Evidence] = Field(default_factory=list)
+
+    # Epistemological chain (RDA-061). The evidence node records the chunks
+    # it retrieved so the validation node can rebuild RetrievedChunk and
+    # DocumentSource for provenance; validation/provenance/confidence are
+    # produced by the validation node and consumed by synthesis.
+    retrieved_chunks: list[RetrievedChunk] = Field(default_factory=list)
+    validation_results: list[ValidationResult] = Field(default_factory=list)
+    provenance_chains: list[ProvenanceChain] = Field(default_factory=list)
+    scored_claims: list[ScoredClaim] = Field(default_factory=list)
+    # Observability of the synthesis filter (RDA-061): how many claims were
+    # considered and how many were excluded for low confidence.
+    synthesis_stats: dict[str, int] = Field(default_factory=dict)
 
     # Errors
     errors: list[WorkflowError] = Field(default_factory=list)

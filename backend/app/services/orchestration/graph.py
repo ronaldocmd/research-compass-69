@@ -1,10 +1,13 @@
 """LangGraph definition for the research workflow (RDA-033 / RDA-034).
 
     START -> planner -> search -> selection -> processing -> evidence
-            -> synthesis -> complete | budget_exceeded | failed -> END
+            -> validation -> synthesis -> complete | budget_exceeded | failed
+            -> END
 
 The state type is ResearchWorkflowState (RDA-032). Terminal routing depends
-on the budget and on whether a permanent error was recorded.
+on the budget and on whether a permanent error was recorded. The validation
+node (RDA-061) sits between evidence and synthesis to wire the
+claim -> evidence -> source -> provenance -> validation chain.
 """
 
 from langgraph.graph import END, START, StateGraph
@@ -38,6 +41,7 @@ def build_graph(nodes: ResearchNodes):
     graph.add_node("selection", nodes.selection_node)
     graph.add_node("processing", nodes.processing_node)
     graph.add_node("evidence", nodes.evidence_node)
+    graph.add_node("validation", nodes.validation_node)
     graph.add_node("synthesis", nodes.synthesis_node)
     graph.add_node("complete", nodes.complete_node)
     graph.add_node("budget_exceeded", nodes.budget_exceeded_node)
@@ -61,7 +65,11 @@ def build_graph(nodes: ResearchNodes):
         {"evidence": "evidence", "budget_exceeded": "budget_exceeded"},
     )
     graph.add_conditional_edges(
-        "evidence", lambda state: route_after_node(state, "synthesis"),
+        "evidence", lambda state: route_after_node(state, "validation"),
+        {"validation": "validation", "budget_exceeded": "budget_exceeded"},
+    )
+    graph.add_conditional_edges(
+        "validation", lambda state: route_after_node(state, "synthesis"),
         {"synthesis": "synthesis", "budget_exceeded": "budget_exceeded"},
     )
     graph.add_conditional_edges(

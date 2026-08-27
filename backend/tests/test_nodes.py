@@ -10,10 +10,13 @@ from types import SimpleNamespace
 
 from app.schemas.search import NormalizedSearchResult
 from app.services.claims.schemas import Claim, ClaimExtractionResult
+from app.services.confidence.schemas import ConfidenceLevel, ConfidenceScore, ScoredClaim
 from app.services.evidence.schemas import Evidence, EvidenceExtractionResult, EvidenceStatus
 from app.services.orchestration.nodes import ResearchNodes, SynthesisResponse
 from app.services.planning.schemas import PlanTask, ResearchPlan, TaskStatus, TaskType
+from app.services.provenance.schemas import DocumentSource, ProvenanceChain, ProvenanceLink
 from app.services.retrieval.schemas import RetrievedChunk, RetrievalResult
+from app.services.validation.schemas import ValidationResult, ValidationStatus
 from app.services.workflow.state import ResearchWorkflowState, WorkflowStage
 from app.services.workflow.state_manager import WorkflowStateManager
 
@@ -410,6 +413,136 @@ def test_evidence_node_produces_claims_and_evidence() -> None:
     assert [c.text for c in state.claims] == [claim.text]
     assert len(state.evidence_items) == 1
     assert state.budget.llm_calls == 2  # claims + evidence
+    assert state.current_stage == WorkflowStage.VALIDATING
+
+
+def test_evidence_node_stores_retrieved_chunks() -> None:
+    """RDA-061: the evidence node records the retrieved chunks (with their
+    retrieval score) so the validation node can rebuild provenance and pass
+    retrieval scores to the confidence scorer."""
+    chunk = RetrievedChunk(
+        chunk_id=uuid.uuid4(), document_id=uuid.uuid4(), text="text",
+        page_number=1, section=None, score=0.9, document_title=None,
+    )
+    claim = _claim()
+    nodes = ResearchNodes(
+        retriever=_FakeRetriever([chunk]),
+        claim_extractor=_FakeClaimExtractor([claim]),
+        evidence_extractor=_FakeEvidenceExtractor(),
+    )
+    state = _initial(tasks=[_task("extract", TaskType.EXTRACT)])
+
+    state = _run(nodes.evidence_node, state)
+
+    assert [c.chunk_id for c in state.retrieved_chunks] == [chunk.chunk_id]
+    assert state.retrieved_chunks[0].score == 0.9
+
+
+# --- validation_node ---------------------------------------------------------
+
+
+class _FakeValidator:
+    def validate(self, claim, evidence):
+        return ValidationResult(
+            validation_id=uuid.uuid4(), claim_id=claim.claim_id,
+            evidence_id=evidence.evidence_id, status=ValidationStatus.SUPPORTED,
+            reasoning="supported", validated_at=datetime.now(UTC), model_used="fake",
+        )
+
+
+class _FakeConfidenceScorer:
+    def score_claim(self, claim, evidence, retrieval_scores=None):
+        return ScoredClaim(
+            claim=claim, evidence=evidence,
+            confidence=ConfidenceScore(
+                level=ConfidenceLevel.HIGH, score=0.9, reasoning="ok", factors={}
+            ),
+            scored_at=datetime.now(UTC),
+        )
+
+
+class _FakeProvenanceResolver:
+    def resolve(self, claim, evidence, chunk, document_source):
+        return ProvenanceChain(
+            claim_id=claim.claim_id,
+            chain=[
+                ProvenanceLink(level="claim", id=str(claim.claim_id), description=claim.text),
+                ProvenanceLink(level="evidence", id=str(evidence.evidence_id), description=evidence.text),
+            ],
+            resolved_at=datetime.now(UTC), is_complete=False,
+        )
+
+
+def _validation_state() -> ResearchWorkflowState:
+    claim = _claim()
+    evidence = _evidence(claim.claim_id)
+    chunk = RetrievedChunk(
+        chunk_id=evidence.chunk_id, document_id=evidence.document_id, text="text",
+        page_number=1, section=None, score=0.9, document_title=None,
+    )
+    return _initial(
+        claims=[claim], evidence_items=[evidence], retrieved_chunks=[chunk],
+    )
+
+
+def test_validation_node_produces_validation_provenance_confidence() -> None:
+    """RDA-061: the validation node wires the orphan services, producing
+    validation results, provenance chains and scored claims, then transitions
+    to synthesis."""
+    nodes = ResearchNodes(
+        validator=_FakeValidator(),
+        provenance_resolver=_FakeProvenanceResolver(),
+        confidence_scorer=_FakeConfidenceScorer(),
+        document_resolver=lambda doc_id, chunk: DocumentSource(
+            document_id=doc_id, title="Doc", url="https://x", doi="10.1/x",
+            page_number=chunk.page_number, chunk_id=chunk.chunk_id,
+        ),
+    )
+    state = _validation_state()
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(state.validation_results) == 1
+    assert len(state.provenance_chains) == 1
+    assert len(state.scored_claims) == 1
+    assert state.scored_claims[0].confidence.level == ConfidenceLevel.HIGH
+    assert state.current_stage == WorkflowStage.SYNTHESIZING
+
+
+def test_validation_node_skips_when_services_missing() -> None:
+    """RDA-061: without the orphan services the validation node is a no-op
+    that still transitions to synthesis (backwards compatible)."""
+    nodes = ResearchNodes()
+    state = _validation_state()
+
+    state = _run(nodes.validation_node, state)
+
+    assert state.validation_results == []
+    assert state.provenance_chains == []
+    assert state.scored_claims == []
+    assert state.current_stage == WorkflowStage.SYNTHESIZING
+
+
+def test_validation_node_persists_state() -> None:
+    """RDA-061: when a persister is wired, the validation node persists the
+    chain before transitioning to synthesis."""
+    persisted: list = []
+    nodes = ResearchNodes(
+        validator=_FakeValidator(),
+        provenance_resolver=_FakeProvenanceResolver(),
+        confidence_scorer=_FakeConfidenceScorer(),
+        document_resolver=lambda doc_id, chunk: DocumentSource(
+            document_id=doc_id, title="Doc", url="https://x", doi="10.1/x",
+            page_number=chunk.page_number, chunk_id=chunk.chunk_id,
+        ),
+        evidence_persister=lambda state: persisted.append(state),
+    )
+    state = _validation_state()
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(persisted) == 1
+    assert persisted[0].scored_claims[0].claim.claim_id == state.claims[0].claim_id
     assert state.current_stage == WorkflowStage.SYNTHESIZING
 
 
@@ -431,13 +564,85 @@ def test_synthesis_node_transitions_to_completed() -> None:
     llm = _FakeLLM("A summary")
     saved: list = []
     nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    scored = ScoredClaim(
+        claim=claim, evidence=[],
+        confidence=ConfidenceScore(
+            level=ConfidenceLevel.HIGH, score=0.9, reasoning="ok", factors={}
+        ),
+        scored_at=datetime.now(UTC),
+    )
 
-    state = _run(nodes.synthesis_node, _initial(claims=[_claim()]))
+    state = _run(nodes.synthesis_node, _initial(claims=[claim], scored_claims=[scored]))
 
     assert state.current_stage == WorkflowStage.COMPLETED
     assert state.budget.llm_calls == 1
     assert state.completed_at is not None
     assert saved == ["A summary"]
+    assert state.synthesis_stats["included"] == 1
+
+
+def test_synthesis_node_filters_low_confidence_claims() -> None:
+    """RDA-061: claims below SYNTHESIS_MIN_CONFIDENCE are excluded from the
+    summary so unsupported statements are not presented as verified facts."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    high_claim = _claim().model_copy(update={"text": "high confidence claim"})
+    low_claim = _claim().model_copy(update={"text": "low confidence claim"})
+    scored = [
+        ScoredClaim(
+            claim=high_claim, evidence=[],
+            confidence=ConfidenceScore(
+                level=ConfidenceLevel.HIGH, score=0.9, reasoning="ok", factors={}
+            ),
+            scored_at=datetime.now(UTC),
+        ),
+        ScoredClaim(
+            claim=low_claim, evidence=[],
+            confidence=ConfidenceScore(
+                level=ConfidenceLevel.LOW, score=0.2, reasoning="weak", factors={}
+            ),
+            scored_at=datetime.now(UTC),
+        ),
+    ]
+
+    state = _run(
+        nodes.synthesis_node,
+        _initial(claims=[high_claim, low_claim], scored_claims=scored),
+    )
+
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.synthesis_stats["total_claims"] == 2
+    assert state.synthesis_stats["included"] == 1
+    assert state.synthesis_stats["excluded_low_confidence"] == 1
+    # Only the HIGH claim is in the prompt.
+    assert high_claim.text in llm.prompts[0]
+    assert low_claim.text not in llm.prompts[0]
+
+
+def test_synthesis_node_skips_when_no_supported_claims() -> None:
+    """RDA-061: when every claim is below the confidence threshold, synthesis
+    is skipped and no summary is fabricated."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    scored = ScoredClaim(
+        claim=claim, evidence=[],
+        confidence=ConfidenceScore(
+            level=ConfidenceLevel.LOW, score=0.1, reasoning="weak", factors={}
+        ),
+        scored_at=datetime.now(UTC),
+    )
+
+    state = _run(nodes.synthesis_node, _initial(claims=[claim], scored_claims=[scored]))
+
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.synthesis_stats["included"] == 0
+    assert any("minimum confidence" in e.message for e in state.errors)
 
 
 def test_synthesis_node_skips_when_no_claims() -> None:

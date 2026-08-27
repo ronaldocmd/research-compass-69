@@ -206,19 +206,28 @@ class FakeLLM:
 
 
 class FakeRetriever:
-    def __init__(self) -> None:
+    def __init__(self, db=None) -> None:
         self._chunk_id = uuid.uuid4()
         self._document_id = uuid.uuid4()
+        self._db = db
 
     def retrieve(self, query):
         from app.services.retrieval.schemas import RetrievedChunk, RetrievalResult
+
+        # Use the real persisted document id when available so provenance can
+        # resolve the document source (RDA-061).
+        document_id = self._document_id
+        if self._db is not None:
+            doc = self._db.execute(select(Document)).scalars().first()
+            if doc is not None:
+                document_id = doc.id
 
         return RetrievalResult(
             query=query,
             chunks=[
                 RetrievedChunk(
                     chunk_id=self._chunk_id,
-                    document_id=self._document_id,
+                    document_id=document_id,
                     text="LLMs transformam a pesquisa.",
                     page_number=1,
                     section=None,
@@ -228,6 +237,50 @@ class FakeRetriever:
             ],
             total_found=1,
             retrieved_at=datetime.now(UTC),
+        )
+
+
+class FakeValidator:
+    def validate(self, claim, evidence):
+        from app.services.validation.schemas import ValidationResult, ValidationStatus
+
+        return ValidationResult(
+            validation_id=uuid.uuid4(),
+            claim_id=claim.claim_id,
+            evidence_id=evidence.evidence_id,
+            status=ValidationStatus.SUPPORTED,
+            reasoning="supported",
+            validated_at=datetime.now(UTC),
+            model_used="fake",
+        )
+
+
+class FakeProvenanceResolver:
+    def resolve(self, claim, evidence, chunk, document_source):
+        from app.services.provenance.schemas import ProvenanceChain, ProvenanceLink
+
+        return ProvenanceChain(
+            claim_id=claim.claim_id,
+            chain=[
+                ProvenanceLink(level="claim", id=str(claim.claim_id), description=claim.text),
+                ProvenanceLink(level="evidence", id=str(evidence.evidence_id), description=evidence.text),
+            ],
+            resolved_at=datetime.now(UTC),
+            is_complete=False,
+        )
+
+
+class FakeConfidenceScorer:
+    def score_claim(self, claim, evidence, retrieval_scores=None):
+        from app.services.confidence.schemas import ConfidenceLevel, ConfidenceScore, ScoredClaim
+
+        return ScoredClaim(
+            claim=claim,
+            evidence=evidence,
+            confidence=ConfidenceScore(
+                level=ConfidenceLevel.HIGH, score=0.9, reasoning="ok", factors={}
+            ),
+            scored_at=datetime.now(UTC),
         )
 
 
@@ -311,7 +364,10 @@ def test_run_persists_documents_chunks_and_summary(client: TestClient) -> None:
                     claim_extractor=FakeClaimExtractor(),
                     evidence_extractor=FakeEvidenceExtractor(),
                     llm=FakeLLM(),
-                    retriever=FakeRetriever(),
+                    retriever=FakeRetriever(db=session),
+                    validator=FakeValidator(),
+                    provenance_resolver=FakeProvenanceResolver(),
+                    confidence_scorer=FakeConfidenceScorer(),
                 )
 
             return build
@@ -340,6 +396,32 @@ def test_run_persists_documents_chunks_and_summary(client: TestClient) -> None:
         assert chunks[0].document_id == docs[0].id
         research = db.get(Research, research_id)
         assert research.summary == "Resumo consolidado da pesquisa."
+
+        # The epistemological chain was persisted (RDA-061).
+        from app.models.evidence_chain import (
+            ClaimRecord,
+            ConfidenceRecord,
+            EvidenceRecord,
+            ProvenanceRecord,
+            ValidationRecord,
+        )
+
+        assert len(db.execute(select(ClaimRecord)).scalars().all()) == 1
+        assert len(db.execute(select(EvidenceRecord)).scalars().all()) == 1
+        assert len(db.execute(select(ValidationRecord)).scalars().all()) == 1
+        assert len(db.execute(select(ProvenanceRecord)).scalars().all()) == 1
+        assert len(db.execute(select(ConfidenceRecord)).scalars().all()) == 1
+
+        # The evidence chain is recoverable via the API after the run.
+        chain_resp = client.get(f"{BASE}/{research_id}/evidence")
+        assert chain_resp.status_code == 200, chain_resp.text
+        chain = chain_resp.json()
+        assert len(chain["claims"]) == 1
+        assert len(chain["evidence"]) == 1
+        assert len(chain["validations"]) == 1
+        assert len(chain["provenance"]) == 1
+        assert len(chain["confidence"]) == 1
+        assert chain["confidence"][0]["level"] == "HIGH"
     finally:
         gen.close()
 

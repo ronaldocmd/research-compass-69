@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     # evidence/synthesis steps).
     LLM_MODEL: str = "gpt-4o-mini"
 
+    # Synthesis (RDA-061). Minimum confidence level for a claim to be
+    # included in the synthesized summary. Claims below this level are
+    # excluded so unsupported statements are not presented as verified facts.
+    # One of "HIGH", "MEDIUM" or "LOW".
+    SYNTHESIS_MIN_CONFIDENCE: str = "MEDIUM"
+
     # Cost evaluation (RDA-050). Explicit per-model pricing in USD per 1k
     # tokens. Prices are estimates for cost reporting only, never billing.
     # Keep them here (config), not hardcoded, so they can be updated.

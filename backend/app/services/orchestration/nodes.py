@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import settings
+from app.services.confidence.schemas import ConfidenceLevel
 from app.services.planning.schemas import ResearchPlanInput, TaskType
 from app.services.retrieval.retriever import cosine_similarity
 from app.services.workflow.state import (
@@ -64,6 +65,11 @@ class ResearchNodes:
         budget_config: BudgetConfig | None = None,
         checkpoint_manager=None,
         performance_tracker=None,
+        validator=None,
+        provenance_resolver=None,
+        confidence_scorer=None,
+        document_resolver=None,
+        evidence_persister=None,
     ) -> None:
         self._planner = planner
         self._search = search
@@ -79,6 +85,14 @@ class ResearchNodes:
         self._retry_handler = retry_handler or RetryHandler(retry_policy)
         self._budget_guard = budget_guard or BudgetGuard(budget_config)
         self._checkpoint_manager = checkpoint_manager
+        # Epistemological chain (RDA-061): the validation node wires the
+        # orphan services (EvidenceValidator, ProvenanceResolver,
+        # ConfidenceScorer) into the workflow and persists the chain.
+        self._validator = validator
+        self._provenance_resolver = provenance_resolver
+        self._confidence_scorer = confidence_scorer
+        self._document_resolver = document_resolver
+        self._evidence_persister = evidence_persister
         # Performance tracking (RDA-051): when a tracker is provided, each
         # tracked stage records start/end timing around its node.
         self._performance_tracker = performance_tracker
@@ -87,6 +101,7 @@ class ResearchNodes:
             self.search_node = self._tracked("search")(self.search_node)
             self.processing_node = self._tracked("processing")(self.processing_node)
             self.evidence_node = self._tracked("evidence")(self.evidence_node)
+            self.validation_node = self._tracked("validation")(self.validation_node)
             self.synthesis_node = self._tracked("synthesis")(self.synthesis_node)
 
     # --- helpers -------------------------------------------------------------
@@ -441,9 +456,11 @@ class ResearchNodes:
             or self._claim_extractor is None
             or self._evidence_extractor is None
         ):
-            return WorkflowStateManager.transition(state, WorkflowStage.SYNTHESIZING)
+            return WorkflowStateManager.transition(state, WorkflowStage.VALIDATING)
         claims = list(state.claims)
         evidence_items = list(state.evidence_items)
+        retrieved_chunks = list(state.retrieved_chunks)
+        seen_chunks = {c.chunk_id for c in retrieved_chunks}
         for task in state.tasks:
             if task.task_type != TaskType.EXTRACT:
                 continue
@@ -457,6 +474,14 @@ class ResearchNodes:
                     return state
                 continue
             chunks = retrieval.chunks
+            # Record the retrieved chunks (with their retrieval score) so the
+            # validation node can rebuild RetrievedChunk/DocumentSource for
+            # provenance and pass retrieval scores to the confidence scorer
+            # (RDA-061).
+            for chunk in chunks:
+                if chunk.chunk_id not in seen_chunks:
+                    retrieved_chunks.append(chunk)
+                    seen_chunks.add(chunk.chunk_id)
             state, extraction, failed_operation = await self._execute_external(
                 state, WorkflowStage.EXTRACTING, self._claim_extractor.extract,
                 chunks, query, budget_operation="llm", terminal_on_failure=False,
@@ -477,8 +502,84 @@ class ResearchNodes:
                     continue
                 evidence_items.extend(evidence.evidence)
         state = state.model_copy(
-            update={"claims": claims, "evidence_items": evidence_items}
+            update={
+                "claims": claims,
+                "evidence_items": evidence_items,
+                "retrieved_chunks": retrieved_chunks,
+            }
         )
+        return WorkflowStateManager.transition(state, WorkflowStage.VALIDATING)
+
+    async def validation_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
+        """Wire the epistemological chain (RDA-061).
+
+        For every claim: score confidence (deterministic), resolve provenance
+        and validate each evidence independently (LLM). The results are
+        recorded on the state and, when a persister is wired, persisted so the
+        chain survives a restart. Claims without evidence still receive a LOW
+        confidence score, which the synthesis filter uses to exclude them.
+        """
+        state = WorkflowStateManager.transition(state, WorkflowStage.VALIDATING)
+        if (
+            self._confidence_scorer is None
+            or self._provenance_resolver is None
+            or self._validator is None
+        ):
+            return WorkflowStateManager.transition(state, WorkflowStage.SYNTHESIZING)
+
+        chunks_by_id = {c.chunk_id: c for c in state.retrieved_chunks}
+        evidence_by_claim: dict[uuid.UUID, list] = {}
+        for evidence in state.evidence_items:
+            evidence_by_claim.setdefault(evidence.claim_id, []).append(evidence)
+
+        validation_results = list(state.validation_results)
+        provenance_chains = list(state.provenance_chains)
+        scored_claims = list(state.scored_claims)
+
+        for claim in state.claims:
+            evidence = evidence_by_claim.get(claim.claim_id, [])
+            retrieval_scores = {
+                c.chunk_id: c.score
+                for c in chunks_by_id.values()
+                if c.chunk_id in claim.chunk_ids
+            }
+            scored_claims.append(
+                self._confidence_scorer.score_claim(claim, evidence, retrieval_scores)
+            )
+            for evidence in evidence:
+                chunk = chunks_by_id.get(evidence.chunk_id) if evidence.chunk_id else None
+                source = None
+                if chunk is not None and self._document_resolver is not None:
+                    source = self._document_resolver(chunk.document_id, chunk)
+                if chunk is not None and source is not None:
+                    provenance_chains.append(
+                        self._provenance_resolver.resolve(claim, evidence, chunk, source)
+                    )
+                state, result, failed = await self._execute_external(
+                    state, WorkflowStage.VALIDATING,
+                    asyncio.to_thread, self._validator.validate, claim, evidence,
+                    budget_operation="llm", terminal_on_failure=False,
+                )
+                if failed:
+                    if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
+                        return state
+                    continue
+                validation_results.append(result)
+
+        state = state.model_copy(
+            update={
+                "validation_results": validation_results,
+                "provenance_chains": provenance_chains,
+                "scored_claims": scored_claims,
+            }
+        )
+        if self._evidence_persister is not None:
+            state, _, failed = await self._execute_external(
+                state, WorkflowStage.VALIDATING, self._evidence_persister, state,
+                terminal_on_failure=False,
+            )
+            if failed and state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
+                return state
         return WorkflowStateManager.transition(state, WorkflowStage.SYNTHESIZING)
 
     async def synthesis_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
@@ -499,13 +600,45 @@ class ResearchNodes:
                 severity=ErrorSeverity.PROCESSING,
                 context={"claims": 0, "chunks": len(state.chunk_ids)},
             )
-            state = state.model_copy(update={"completed_at": datetime.now(UTC)})
+            state = state.model_copy(
+                update={
+                    "completed_at": datetime.now(UTC),
+                    "synthesis_stats": {
+                        "total_claims": 0,
+                        "included": 0,
+                        "excluded_low_confidence": 0,
+                    },
+                }
+            )
+            return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
+
+        # Epistemological filter (RDA-061): only claims at or above
+        # SYNTHESIS_MIN_CONFIDENCE are synthesized, so unsupported statements
+        # are not presented as verified facts. The prompt annotates each
+        # included claim with its confidence level.
+        supported = self._supported_claims(state)
+        stats = {
+            "total_claims": len(state.claims),
+            "included": len(supported),
+            "excluded_low_confidence": len(state.claims) - len(supported),
+        }
+        if not supported:
+            state = self._record_error(
+                state, WorkflowStage.SYNTHESIZING,
+                "Synthesis skipped: no claims met the minimum confidence "
+                f"threshold ({settings.SYNTHESIS_MIN_CONFIDENCE})",
+                severity=ErrorSeverity.PROCESSING,
+                context=stats,
+            )
+            state = state.model_copy(
+                update={"completed_at": datetime.now(UTC), "synthesis_stats": stats}
+            )
             return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
 
         state, response, failed = await self._execute_external(
             state, WorkflowStage.SYNTHESIZING,
             asyncio.to_thread,
-            self._llm.complete, self._build_synthesis_prompt(state), SynthesisResponse,
+            self._llm.complete, self._build_synthesis_prompt(state, supported), SynthesisResponse,
             budget_operation="llm",
         )
         if failed:
@@ -516,12 +649,37 @@ class ResearchNodes:
                 state, WorkflowStage.SYNTHESIZING, self._summary_saver,
                 state.research_id, summary, terminal_on_failure=False,
             )
-        state = state.model_copy(update={"completed_at": datetime.now(UTC)})
+        state = state.model_copy(
+            update={"completed_at": datetime.now(UTC), "synthesis_stats": stats}
+        )
         return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
 
     @staticmethod
-    def _build_synthesis_prompt(state) -> str:
-        lines = [f"- {claim.text}" for claim in state.claims]
+    def _level_rank(level: ConfidenceLevel) -> int:
+        """Order confidence levels so HIGH > MEDIUM > LOW."""
+        return {ConfidenceLevel.HIGH: 3, ConfidenceLevel.MEDIUM: 2, ConfidenceLevel.LOW: 1}[level]
+
+    def _supported_claims(self, state) -> list[tuple]:
+        """Return (claim, confidence_level) pairs at or above the threshold.
+
+        Claims without a scored confidence are treated as unsupported and
+        excluded. The threshold comes from SYNTHESIS_MIN_CONFIDENCE.
+        """
+        try:
+            min_level = ConfidenceLevel(settings.SYNTHESIS_MIN_CONFIDENCE)
+        except ValueError:
+            min_level = ConfidenceLevel.MEDIUM
+        by_id = {sc.claim.claim_id: sc.confidence for sc in state.scored_claims}
+        out = []
+        for claim in state.claims:
+            confidence = by_id.get(claim.claim_id)
+            if confidence is not None and self._level_rank(confidence.level) >= self._level_rank(min_level):
+                out.append((claim, confidence.level))
+        return out
+
+    @staticmethod
+    def _build_synthesis_prompt(state, supported) -> str:
+        lines = [f"- [{level.value}] {claim.text}" for claim, level in supported]
         body = "\n".join(lines) or "(none)"
         return (
             "Summarize the research findings from these claims.\n"

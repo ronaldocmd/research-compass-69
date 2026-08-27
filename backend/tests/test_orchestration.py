@@ -45,6 +45,7 @@ def _fake_nodes(calls):
         selection_node=make("selection"),
         processing_node=make("processing"),
         evidence_node=make("evidence"),
+        validation_node=make("validation"),
         synthesis_node=make("synthesis"),
         complete_node=make("complete"),
         budget_exceeded_node=make("budget_exceeded"),
@@ -107,6 +108,7 @@ def test_workflow_traverses_stages_in_order() -> None:
         "selection",
         "processing",
         "evidence",
+        "validation",
         "synthesis",
         "complete",
     ]

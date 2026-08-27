@@ -66,7 +66,8 @@ def test_openapi_exposes_health_and_research_routes(client: TestClient) -> None:
         f"{settings.API_V1_PREFIX}/evaluations",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/evaluations",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/evaluation-stats",
-        f"{settings.API_V1_PREFIX}/researches/{{research_id}}/cost",
-        f"{settings.API_V1_PREFIX}/researches/{{research_id}}/performance",
-    }
+            f"{settings.API_V1_PREFIX}/researches/{{research_id}}/cost",
+            f"{settings.API_V1_PREFIX}/researches/{{research_id}}/performance",
+            f"{settings.API_V1_PREFIX}/researches/{{research_id}}/evidence",
+        }
 

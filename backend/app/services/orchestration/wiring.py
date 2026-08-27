@@ -16,9 +16,11 @@ from sqlalchemy.orm import Session
 
 from app.models.chunk import ChunkRecord
 from app.models.document import Document, DocumentStatus
+from app.repositories.evidence_chain_repository import EvidenceChainRepository
 from app.services.claims.extractor import ClaimExtractor
 from app.services.chunking.chunker import DocumentChunker
-from app.services.document_service import DocumentService
+from app.services.confidence.scorer import ConfidenceScorer
+from app.services.document_service import DocumentNotFoundError, DocumentService
 from app.services.downloader.downloader import DocumentDownloader
 from app.services.embeddings.embedding_service import EmbeddingService
 from app.services.evidence.extractor import EvidenceExtractor
@@ -26,11 +28,15 @@ from app.services.extraction.pdf_extractor import PDFExtractor
 from app.services.llm.openai_provider import OpenAILLMProvider
 from app.services.orchestration.nodes import ResearchNodes
 from app.services.planning.planner import ResearchPlanner
+from app.services.provenance.resolver import ProvenanceResolver
+from app.services.provenance.schemas import DocumentSource
 from app.services.research_service import ResearchService
 from app.services.retrieval.retriever import DocumentRetriever
 from app.services.retrieval.schemas import IndexedChunk
 from app.services.search.search_service import SearchService
 from app.services.storage.storage import FileStorage
+from app.services.validation.validator import EvidenceValidator
+from app.services.workflow.state import ResearchWorkflowState
 
 # Same fixed namespace used by ResearchNodes.selection_node so the
 # deterministic selection UUIDs match the persisted Documents.
@@ -80,6 +86,9 @@ class WorkflowServices:
         evidence_extractor: EvidenceExtractor | None = None,
         llm: OpenAILLMProvider | None = None,
         retriever: DocumentRetriever | None = None,
+        validator: EvidenceValidator | None = None,
+        provenance_resolver: ProvenanceResolver | None = None,
+        confidence_scorer: ConfidenceScorer | None = None,
     ) -> None:
         self.db = db
         self.research_id = research_id
@@ -96,6 +105,13 @@ class WorkflowServices:
         self.claim_extractor = claim_extractor or ClaimExtractor()
         self.evidence_extractor = evidence_extractor or EvidenceExtractor()
         self.llm = llm or OpenAILLMProvider()
+        # Epistemological chain (RDA-061): the orphan services are wired here
+        # so the validation node can validate, resolve provenance and score
+        # confidence, then persist the chain.
+        self.validator = validator or EvidenceValidator()
+        self.provenance_resolver = provenance_resolver or ProvenanceResolver()
+        self.confidence_scorer = confidence_scorer or ConfidenceScorer()
+        self._evidence_chain_repo = EvidenceChainRepository(db)
 
         # Shared, mutable retrieval index: the retriever reads it and the
         # processor appends to it as documents are embedded.
@@ -218,6 +234,31 @@ class WorkflowServices:
             return
         self.research_service.repository.update(research, summary=summary)
 
+    def resolve_document_source(
+        self, document_id: uuid.UUID, chunk
+    ) -> DocumentSource | None:
+        """Resolve the original-source metadata for a chunk (RDA-061).
+
+        Returns None when the document is not found, so the validation node
+        simply skips provenance for that chunk instead of failing.
+        """
+        try:
+            document = self.document_service.get_document(document_id)
+        except DocumentNotFoundError:
+            return None
+        return DocumentSource(
+            document_id=document.id,
+            title=document.title,
+            url=document.url,
+            doi=document.doi,
+            page_number=chunk.page_number,
+            chunk_id=chunk.chunk_id,
+        )
+
+    def persist_evidence_chain(self, state: ResearchWorkflowState) -> None:
+        """Persist the epistemological chain carried by ``state`` (RDA-061)."""
+        self._evidence_chain_repo.persist(state)
+
     # --- helpers -------------------------------------------------------------
 
     def _persist_results(self, results: list) -> None:
@@ -277,4 +318,11 @@ def build_research_nodes(
         # Used by the selection node to score search results against the
         # research question (RDA-058).
         embedding_provider=services.embedding_service.provider,
+        # Epistemological chain (RDA-061): wire the orphan services and the
+        # adapters that resolve document sources and persist the chain.
+        validator=services.validator,
+        provenance_resolver=services.provenance_resolver,
+        confidence_scorer=services.confidence_scorer,
+        document_resolver=services.resolve_document_source,
+        evidence_persister=services.persist_evidence_chain,
     )

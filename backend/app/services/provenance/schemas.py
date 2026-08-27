@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProvenanceLink(BaseModel):
@@ -26,6 +26,7 @@ class ProvenanceChain(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    provenance_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     claim_id: uuid.UUID
     chain: list[ProvenanceLink]
     resolved_at: datetime
