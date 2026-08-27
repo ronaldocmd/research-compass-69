@@ -1,0 +1,338 @@
+{
+  "audit": "RDA-058 query strategy comparison",
+  "timestamp": "2026-08-27T17:09:38.259647+00:00",
+  "commit": "e2973fc7706ca5f2d48c90e0e79e122e39508d2f",
+  "embedding_model": "text-embedding-3-small",
+  "min_score": 0.5,
+  "top_k": 5,
+  "aggregates": {
+    "A_task_title": {
+      "R@5": 0.0,
+      "Hit@5": 0.0,
+      "MRR": 0.0,
+      "NDCG@5": 0.0
+    },
+    "B_question": {
+      "R@5": 0.625,
+      "Hit@5": 0.7857,
+      "MRR": 0.7024,
+      "NDCG@5": 0.6159
+    },
+    "C_question_description": {
+      "R@5": 0.5655,
+      "Hit@5": 0.7143,
+      "MRR": 0.631,
+      "NDCG@5": 0.5467
+    }
+  },
+  "per_query": [
+    {
+      "query_id": "q01_easy_sr",
+      "topic": "systematic_review",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.9299
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.905
+      }
+    },
+    {
+      "query_id": "q02_easy_code",
+      "topic": "llm_code",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.9134
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.9134
+      }
+    },
+    {
+      "query_id": "q03_easy_lung",
+      "topic": "lung_cancer",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 0.3333,
+        "NDCG@5": 0.5706
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 0.3333,
+        "NDCG@5": 0.5706
+      }
+    },
+    {
+      "query_id": "q04_medium_rec",
+      "topic": "recommendation",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.6667,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.81
+      },
+      "C_question_description": {
+        "R@5": 0.3333,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.5701
+      }
+    },
+    {
+      "query_id": "q05_medium_cot",
+      "topic": "chain_of_thought",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 0.5,
+        "NDCG@5": 0.648
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 0.5,
+        "NDCG@5": 0.648
+      }
+    },
+    {
+      "query_id": "q06_medium_emb",
+      "topic": "embeddings",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.3333,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.5701
+      },
+      "C_question_description": {
+        "R@5": 0.3333,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.5701
+      }
+    },
+    {
+      "query_id": "q07_hard_sr",
+      "topic": "systematic_review",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 1.0
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 1.0
+      }
+    },
+    {
+      "query_id": "q08_hard_code",
+      "topic": "llm_code",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 1.0
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 1.0
+      }
+    },
+    {
+      "query_id": "q09_synonym",
+      "topic": "recommendation",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.5,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.7039
+      },
+      "C_question_description": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      }
+    },
+    {
+      "query_id": "q10_negative",
+      "topic": "systematic_review",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "C_question_description": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      }
+    },
+    {
+      "query_id": "q11_ambiguous",
+      "topic": "lung_cancer",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "C_question_description": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      }
+    },
+    {
+      "query_id": "q12_adversarial_lexical",
+      "topic": "recommendation",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "C_question_description": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      }
+    },
+    {
+      "query_id": "q13_specific",
+      "topic": "llm_code",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 1.0
+      },
+      "C_question_description": {
+        "R@5": 1.0,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 1.0
+      }
+    },
+    {
+      "query_id": "q14_broad",
+      "topic": "llm_code",
+      "A_task_title": {
+        "R@5": 0.0,
+        "Hit@5": 0,
+        "MRR": 0.0,
+        "NDCG@5": 0.0
+      },
+      "B_question": {
+        "R@5": 0.25,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.477
+      },
+      "C_question_description": {
+        "R@5": 0.25,
+        "Hit@5": 1,
+        "MRR": 1.0,
+        "NDCG@5": 0.477
+      }
+    }
+  ]
+}

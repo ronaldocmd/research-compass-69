@@ -151,18 +151,154 @@ def test_selection_node_dedupes_by_title_when_no_doi() -> None:
     assert len(state.selected_documents) == 2
 
 
+class _RelevanceEmbeddingProvider:
+    """Fake provider: embeds text into a vector whose similarity to the
+    question vector is high for relevant text and low for irrelevant text."""
+
+    def __init__(self) -> None:
+        self._question = [1.0, 0.0]
+
+    def embed(self, text: str) -> list[float]:
+        lowered = text.lower()
+        if "llm" in lowered or "language model" in lowered:
+            return [1.0, 0.0]  # highly relevant
+        if "education" in lowered:
+            return [0.6, 0.8]  # partially relevant
+        return [0.0, 1.0]  # irrelevant
+
+
+def test_selection_node_filters_by_relevance() -> None:
+    """RDA-058: with an embedding provider and a research question, results
+    below SELECTION_MIN_SCORE are dropped for irrelevance."""
+    nodes = ResearchNodes(
+        max_documents=10, embedding_provider=_RelevanceEmbeddingProvider()
+    )
+    results = [
+        NormalizedSearchResult(source="openalex", title="LLMs in education", doi="10.1/a"),
+        NormalizedSearchResult(source="openalex", title="A study about gardening", doi="10.2/b"),
+        NormalizedSearchResult(source="openalex", title="Large language models", doi="10.3/c"),
+    ]
+    state = _initial(
+        search_results=results, research_question="What is the impact of LLMs on education?"
+    )
+
+    state = _run(nodes.selection_node, state)
+
+    assert len(state.selected_documents) == 2
+    assert state.selection_stats["search_results"] == 3
+    assert state.selection_stats["selected"] == 2
+    assert state.selection_stats["discarded_irrelevant"] == 1
+
+
+def test_selection_node_without_question_selects_all() -> None:
+    """RDA-058: without a research question the relevance filter is skipped
+    and all results are selected (backwards compatible)."""
+    nodes = ResearchNodes(
+        max_documents=10, embedding_provider=_RelevanceEmbeddingProvider()
+    )
+    results = [
+        NormalizedSearchResult(source="openalex", title="LLMs in education", doi="10.1/a"),
+        NormalizedSearchResult(source="openalex", title="A study about gardening", doi="10.2/b"),
+    ]
+    state = _initial(search_results=results)
+
+    state = _run(nodes.selection_node, state)
+
+    assert len(state.selected_documents) == 2
+    assert state.selection_stats["discarded_irrelevant"] == 0
+
+
 # --- processing_node ---------------------------------------------------------
 
 
 class _FakeProcessor:
-    def __init__(self, *, chunks_by_id=None, fail_ids=None) -> None:
+    def __init__(self, *, chunks_by_id=None, fail_ids=None, unavailable_ids=None) -> None:
         self._chunks = chunks_by_id or {}
         self._fail = fail_ids or set()
+        self._unavailable = unavailable_ids or set()
 
     def __call__(self, doc_id):
         if doc_id in self._fail:
             raise RuntimeError("boom")
+        if doc_id in self._unavailable:
+            from app.services.orchestration.wiring import ProcessResult
+            return ProcessResult(reason="download_failed: html")
         return self._chunks.get(doc_id, [])
+
+
+def test_selection_processing_separates_relevance_from_downloadability() -> None:
+    """RDA-058 FASE 9: reproduces the RDA-057 scenario where the index was
+    polluted with off-topic PDFs while relevant HTML sources were dropped.
+
+    Groups:
+      A relevant + PDF, B relevant + HTML, C irrelevant + PDF,
+      D irrelevant + HTML, E relevant + PDF (control).
+    Selection must keep A, B, E (relevance) and drop C, D (irrelevance);
+    processing must record B as unavailable (HTML), not as irrelevant.
+    """
+    from app.services.orchestration.wiring import ProcessResult
+
+    class _GroupProcessor:
+        def __init__(self, unavailable_ids) -> None:
+            self._unavailable = unavailable_ids
+
+        def __call__(self, doc_id):
+            if doc_id in self._unavailable:
+                return ProcessResult(reason="storage_rejected: html")
+            return [uuid.uuid4()]
+
+    results = [
+        NormalizedSearchResult(source="openalex", title="LLMs in education", doi="10.1/a"),  # A
+        NormalizedSearchResult(source="openalex", title="LLMs in education full text", doi="10.2/b"),  # B
+        NormalizedSearchResult(source="openalex", title="Gardening techniques", doi="10.3/c"),  # C
+        NormalizedSearchResult(source="openalex", title="Cooking recipes", doi="10.4/d"),  # D
+        NormalizedSearchResult(source="openalex", title="Large language models review", doi="10.5/e"),  # E
+    ]
+    nodes = ResearchNodes(
+        max_documents=10, embedding_provider=_RelevanceEmbeddingProvider()
+    )
+    state = _initial(
+        search_results=results,
+        research_question="What is the impact of LLMs on education?",
+    )
+    state = _run(nodes.selection_node, state)
+
+    # A, B, E are relevant -> selected; C, D irrelevant -> dropped.
+    assert len(state.selected_documents) == 3
+    assert state.selection_stats["discarded_irrelevant"] == 2
+
+    # B (relevant but HTML) is unavailable at processing time.
+    selected_ids = state.selected_documents
+    b_id = selected_ids[1]
+    processor = _GroupProcessor(unavailable_ids={b_id})
+    nodes2 = ResearchNodes(processor=processor)
+    state = _run(nodes2.processing_node, state)
+
+    assert state.processing_status[b_id].startswith("failed:storage_rejected")
+    assert state.selection_stats["processed"] == 2
+    assert state.selection_stats["failed"] == 1
+
+
+def test_retrieval_query_uses_research_question() -> None:
+    """RDA-058: the retrieval query is built from the research question, not
+    the generic EXTRACT task title."""
+    nodes = ResearchNodes()
+    task = _task("Extract key findings from the selected studies", TaskType.EXTRACT)
+    state = _initial(
+        research_question="What is the impact of LLMs on education?",
+        tasks=[task],
+    )
+    query = nodes._retrieval_query(state, task)
+    assert "impact of llms on education" in query.lower()
+
+
+def test_retrieval_query_falls_back_to_task_title() -> None:
+    """RDA-058: without a research question the query falls back to the task
+    title (backwards compatible)."""
+    nodes = ResearchNodes()
+    task = _task("Extract key findings", TaskType.EXTRACT)
+    state = _initial(tasks=[task])
+    assert nodes._retrieval_query(state, task) == "Extract key findings"
 
 
 def test_processing_node_records_processed_and_failed() -> None:
@@ -184,6 +320,31 @@ def test_processing_node_records_processed_and_failed() -> None:
     assert state.processing_status[bad_doc] == "failed"
     assert state.budget.processing_operations == 1
     assert state.current_stage == WorkflowStage.EXTRACTING
+
+
+def test_processing_node_records_unavailability_reason() -> None:
+    """RDA-058: a document dropped for technical unavailability (e.g. HTML)
+    is recorded distinctly from a processed document, so downloadability is
+    not silently conflated with relevance."""
+    ok_doc = uuid.uuid4()
+    html_doc = uuid.uuid4()
+    chunk_id = uuid.uuid4()
+    processor = _FakeProcessor(
+        chunks_by_id={ok_doc: [chunk_id]}, unavailable_ids={html_doc}
+    )
+    nodes = ResearchNodes(processor=processor)
+    state = _initial(selected_documents=[ok_doc, html_doc])
+
+    state = _run(nodes.processing_node, state)
+
+    assert state.processed_document_ids == [ok_doc]
+    assert state.failed_document_ids == [html_doc]
+    assert state.chunk_ids == [chunk_id]
+    assert state.processing_status[ok_doc] == "processed"
+    assert state.processing_status[html_doc].startswith("failed:download_failed")
+    assert state.selection_stats["processed"] == 1
+    assert state.selection_stats["failed"] == 1
+    assert state.selection_stats["chunk_count"] == 1
 
 
 def test_processing_node_skips_already_processed() -> None:
@@ -271,9 +432,25 @@ def test_synthesis_node_transitions_to_completed() -> None:
     saved: list = []
     nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
 
-    state = _run(nodes.synthesis_node, _initial())
+    state = _run(nodes.synthesis_node, _initial(claims=[_claim()]))
 
     assert state.current_stage == WorkflowStage.COMPLETED
     assert state.budget.llm_calls == 1
     assert state.completed_at is not None
     assert saved == ["A summary"]
+
+
+def test_synthesis_node_skips_when_no_claims() -> None:
+    """Quality gate (RDA-058): with no claims the synthesis must not fabricate
+    a summary from empty context; it records a warning and completes."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+
+    state = _run(nodes.synthesis_node, _initial())
+
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.completed_at is not None
+    assert any("Synthesis skipped" in e.message for e in state.errors)

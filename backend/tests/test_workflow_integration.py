@@ -123,6 +123,16 @@ class FakeEmbedding:
             for chunk in chunks
         ]
 
+    @property
+    def provider(self):
+        """Fake provider exposing ``embed`` for the selection node (RDA-058)."""
+        return _FakeEmbeddingProvider()
+
+
+class _FakeEmbeddingProvider:
+    def embed(self, text: str) -> list[float]:
+        return [0.1, 0.2, 0.3]
+
 
 class FakePlanner:
     def plan(self, plan_input) -> ResearchPlan:

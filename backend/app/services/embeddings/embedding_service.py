@@ -39,6 +39,11 @@ class EmbeddingService:
         self._provider = provider or self._default_provider_classes[DEFAULT_PROVIDER]()
         self._batch_size = batch_size if batch_size is not None else settings.EMBEDDING_BATCH_SIZE
 
+    @property
+    def provider(self) -> EmbeddingProvider:
+        """The underlying EmbeddingProvider (RDA-058)."""
+        return self._provider
+
     def generate_embeddings(self, chunks: list[Chunk]) -> list[EmbeddingResult]:
         """Embed every chunk's text, in batches, without losing failures.
 

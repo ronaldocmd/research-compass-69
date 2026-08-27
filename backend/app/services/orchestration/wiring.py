@@ -10,6 +10,7 @@ components and adapts their signatures to the node contracts.
 """
 
 import uuid
+from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
@@ -39,6 +40,21 @@ _SELECTION_NAMESPACE = uuid.UUID("8f1c2a3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b")
 def _selection_id_from_document(document: Document) -> uuid.UUID:
     key = document.doi or document.external_id or document.title or document.source or ""
     return uuid.uuid5(_SELECTION_NAMESPACE, key)
+
+
+@dataclass
+class ProcessResult:
+    """Outcome of processing one document (RDA-058).
+
+    Carries the produced chunk ids plus a reason when the document could not
+    be processed, so the pipeline can distinguish a document dropped for
+    technical unavailability (e.g. no URL, HTML-only, download/extraction
+    failure) from one that was processed. This makes downloadability
+    observable instead of silently conflating it with relevance.
+    """
+
+    chunk_ids: list[uuid.UUID] = field(default_factory=list)
+    reason: str | None = None
 
 
 class WorkflowServices:
@@ -103,31 +119,40 @@ class WorkflowServices:
         self._persist_results(results)
         return results
 
-    def process(self, doc_id: uuid.UUID) -> list[uuid.UUID]:
+    def process(self, doc_id: uuid.UUID) -> ProcessResult:
         """Download, extract, chunk, embed and persist one document.
 
-        Returns the list of chunk UUIDs produced (empty when the document
-        cannot be processed, e.g. no URL or a download/extraction failure).
+        Returns a ProcessResult with the produced chunk UUIDs and, when the
+        document cannot be processed, a ``reason`` describing why (RDA-058).
         """
         document = self._doc_by_selection_id.get(doc_id)
         if document is None:
             document = self._find_document(doc_id)
-        if document is None or not document.url:
-            return []
+        if document is None:
+            return ProcessResult(reason="document_not_found")
+        if not document.url:
+            return ProcessResult(reason="no_url")
 
         try:
             download = self.downloader.download(document.url)
-        except Exception:
+        except Exception as exc:
             self.document_service.repository.update(
                 document, status=DocumentStatus.FAILED
             )
-            return []
+            return ProcessResult(reason=f"download_failed: {exc}")
 
-        storage_path = self.storage.save(
-            document.id,
-            download.content,
-            {"content_type": download.content_type},
-        )
+        try:
+            storage_path = self.storage.save(
+                document.id,
+                download.content,
+                {"content_type": download.content_type},
+            )
+        except Exception as exc:
+            self.document_service.repository.update(
+                document, status=DocumentStatus.FAILED
+            )
+            return ProcessResult(reason=f"storage_rejected: {exc}")
+
         self.document_service.repository.update(
             document,
             storage_path=storage_path,
@@ -139,11 +164,11 @@ class WorkflowServices:
             extraction = self.extractor.extract_structured(
                 storage_path, document_id=document.id
             )
-        except Exception:
+        except Exception as exc:
             self.document_service.repository.update(
                 document, status=DocumentStatus.FAILED
             )
-            return []
+            return ProcessResult(reason=f"extraction_failed: {exc}")
 
         chunking = self.chunker.chunk(extraction)
         embeddings = self.embedding_service.generate_embeddings(chunking.chunks)
@@ -184,7 +209,7 @@ class WorkflowServices:
         self.document_service.repository.update(
             document, status=DocumentStatus.PROCESSED
         )
-        return chunk_ids
+        return ProcessResult(chunk_ids=chunk_ids)
 
     def save_summary(self, research_id: uuid.UUID, summary: str) -> None:
         try:
@@ -249,4 +274,7 @@ def build_research_nodes(
         llm=services.llm,
         research_loader=services.research_loader,
         summary_saver=services.save_summary,
+        # Used by the selection node to score search results against the
+        # research question (RDA-058).
+        embedding_provider=services.embedding_service.provider,
     )

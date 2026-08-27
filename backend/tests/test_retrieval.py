@@ -218,7 +218,9 @@ def test_retrieval_config_defaults() -> None:
     from app.core.config import settings
 
     assert settings.RETRIEVAL_TOP_K == 5
-    assert settings.RETRIEVAL_MIN_SCORE == pytest.approx(0.7)
+    # Calibrated in RDA-058: 0.5 is the best operating point on the gold
+    # benchmark (F1 0.64 vs 0.13 at the previous 0.7).
+    assert settings.RETRIEVAL_MIN_SCORE == pytest.approx(0.5)
 
 
 def test_retrieve_matches_reference_cosine_similarity() -> None:

@@ -52,8 +52,30 @@ class Settings(BaseSettings):
 
     # Retrieval (RDA-024). Default top-K and minimum cosine-similarity
     # threshold for DocumentRetriever; both can be overridden per-call.
+    #
+    # RETRIEVAL_MIN_SCORE was calibrated empirically in RDA-058 against the
+    # RDA-057 gold benchmark: the previous 0.7 sat above the relevant-score
+    # cluster (p75 ~0.65) and collapsed recall (R@5 0.14, F1 0.13). The
+    # threshold sweep showed 0.5 is the best operating point (F1 0.64,
+    # P 0.68, R 0.61) balancing quality, coverage and context cost.
     RETRIEVAL_TOP_K: int = 5
-    RETRIEVAL_MIN_SCORE: float = 0.7
+    RETRIEVAL_MIN_SCORE: float = 0.5
+
+    # Document selection (RDA-058). Minimum cosine similarity between a
+    # search result (title+abstract) and the research question for the result
+    # to be selected for processing. Separates relevance from downloadability:
+    # a result is only dropped for irrelevance below this score, never for
+    # lacking a direct PDF. Calibrated conservatively so genuinely relevant
+    # results are not filtered out.
+    SELECTION_MIN_SCORE: float = 0.3
+
+    # Retrieval query strategy (RDA-058). How the evidence node builds the
+    # query passed to the retriever. "question" uses the research question
+    # alone; "question_description" appends the EXTRACT task description.
+    # Measured on the RDA-057 gold benchmark, "question" is the best
+    # operating point (R@5 0.63, Hit@5 0.79, MRR 0.70) versus the old
+    # generic task title (R@5 0.0) and question+description (R@5 0.57).
+    RETRIEVAL_QUERY_STRATEGY: str = "question"
 
     # LLM (RDA-025). Completion model used by ClaimExtractor (and later
     # evidence/synthesis steps).

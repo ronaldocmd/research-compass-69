@@ -94,11 +94,21 @@ class ResearchWorkflowState(BaseModel):
     plan_id: uuid.UUID | None = None
     tasks: list[PlanTask] = Field(default_factory=list)
 
+    # Research intent (RDA-058). Captured at planning time so downstream
+    # nodes (selection, evidence) can condition on the actual research
+    # question instead of generic task titles.
+    research_question: str | None = None
+    research_objective: str | None = None
+
     # Search
     search_queries: list[str] = Field(default_factory=list)
     search_results: list[NormalizedSearchResult | dict[str, Any]] = Field(default_factory=list)
     selected_documents: list[uuid.UUID] = Field(default_factory=list)
     selected_ids: list[str] = Field(default_factory=list)
+
+    # Selection observability (RDA-058). Counts of where search results are
+    # dropped so the pipeline can be diagnosed end-to-end.
+    selection_stats: dict[str, int] = Field(default_factory=dict)
 
     # Processing
     processed_document_ids: list[uuid.UUID] = Field(default_factory=list)

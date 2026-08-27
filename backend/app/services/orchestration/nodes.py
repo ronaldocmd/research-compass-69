@@ -13,7 +13,9 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.config import settings
 from app.services.planning.schemas import ResearchPlanInput, TaskType
+from app.services.retrieval.retriever import cosine_similarity
 from app.services.workflow.state import (
     ErrorSeverity,
     ResearchWorkflowState,
@@ -54,6 +56,7 @@ class ResearchNodes:
         llm=None,
         research_loader=None,
         summary_saver=None,
+        embedding_provider=None,
         max_documents: int = 20,
         retry_handler: RetryHandler | None = None,
         retry_policy: RetryPolicy | None = None,
@@ -71,6 +74,7 @@ class ResearchNodes:
         self._llm = llm
         self._research_loader = research_loader
         self._summary_saver = summary_saver
+        self._embedding_provider = embedding_provider
         self._max_documents = max_documents
         self._retry_handler = retry_handler or RetryHandler(retry_policy)
         self._budget_guard = budget_guard or BudgetGuard(budget_config)
@@ -265,7 +269,16 @@ class ResearchNodes:
         )
         if failed:
             return state
-        state = state.model_copy(update={"plan_id": plan.plan_id, "tasks": plan.tasks})
+        state = state.model_copy(
+            update={
+                "plan_id": plan.plan_id,
+                "tasks": plan.tasks,
+                # Capture the research intent so downstream nodes (selection,
+                # evidence) can condition on it (RDA-058).
+                "research_question": research.question,
+                "research_objective": research.objective,
+            }
+        )
         return WorkflowStateManager.transition(state, WorkflowStage.SEARCHING)
 
     async def search_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
@@ -293,22 +306,85 @@ class ResearchNodes:
         state = WorkflowStateManager.transition(state, WorkflowStage.SELECTING)
         seen: set = set()
         selected_ids: list = []
+        stats = {
+            "search_results": len(state.search_results),
+            "selected": 0,
+            "discarded_irrelevant": 0,
+            "discarded_duplicate": 0,
+        }
+
+        # Relevance filter (RDA-058): separate relevance from downloadability.
+        # When an embedding provider and the research question are available,
+        # results are scored against the question and only those above
+        # SELECTION_MIN_SCORE are selected. A result is dropped for
+        # irrelevance here, never for lacking a direct PDF (that is a
+        # downloadability concern handled at processing time).
+        query_embedding = None
+        if self._embedding_provider is not None and state.research_question:
+            try:
+                query_embedding = self._embedding_provider.embed(state.research_question)
+            except Exception:
+                query_embedding = None
+
         for result in state.search_results:
             key = result.doi or (result.title or "").strip().lower() or result.external_id
             if key and key in seen:
+                stats["discarded_duplicate"] += 1
                 continue
             if key:
                 seen.add(key)
+
+            if query_embedding is not None:
+                text = " ".join(
+                    part for part in (result.title, result.abstract) if part
+                ).strip()
+                if not text:
+                    stats["discarded_irrelevant"] += 1
+                    continue
+                try:
+                    result_embedding = self._embedding_provider.embed(text)
+                    score = cosine_similarity(query_embedding, result_embedding)
+                except Exception:
+                    score = None
+                if score is not None and score < settings.SELECTION_MIN_SCORE:
+                    stats["discarded_irrelevant"] += 1
+                    continue
+
             selected_ids.append(self._result_id(result))
             if len(selected_ids) >= self._max_documents:
                 break
-        state = state.model_copy(update={"selected_documents": selected_ids})
+
+        stats["selected"] = len(selected_ids)
+        state = state.model_copy(
+            update={"selected_documents": selected_ids, "selection_stats": stats}
+        )
         return WorkflowStateManager.transition(state, WorkflowStage.PROCESSING)
 
     @staticmethod
     def _result_id(result):
         key = result.doi or result.external_id or result.title or result.source or ""
         return uuid.uuid5(_SELECTION_NAMESPACE, key)
+
+    def _retrieval_query(self, state, task) -> str:
+        """Build the retrieval query for an EXTRACT task (RDA-058).
+
+        The previous behaviour used ``task.title`` alone, which is often a
+        generic extraction instruction ("Extract data on impact metrics from
+        selected studies") that does not represent the research intent. The
+        query is now conditioned on the research question, optionally combined
+        with the task description, per RETRIEVAL_QUERY_STRATEGY.
+        """
+        question = (state.research_question or "").strip()
+        strategy = settings.RETRIEVAL_QUERY_STRATEGY
+        if strategy == "question":
+            return question or task.title
+        if strategy == "question_description":
+            description = (task.description or "").strip()
+            if question and description:
+                return f"{question} {description}"
+            return question or task.title
+        # Default / unknown strategy: fall back to the research question.
+        return question or task.title
 
     async def processing_node(self, state: ResearchWorkflowState) -> ResearchWorkflowState:
         state = WorkflowStateManager.transition(state, WorkflowStage.PROCESSING)
@@ -321,7 +397,7 @@ class ResearchNodes:
         for doc_id in state.selected_documents:
             if doc_id in processed or doc_id in failed:
                 continue
-            state, chunks, failed_operation = await self._execute_external(
+            state, result, failed_operation = await self._execute_external(
                 state, WorkflowStage.PROCESSING, self._processor, doc_id,
                 budget_operation="processing", terminal_on_failure=False,
             )
@@ -331,15 +407,29 @@ class ResearchNodes:
                 failed.append(doc_id)
                 status[doc_id] = "failed"
                 continue
+            # The processor returns a ProcessResult; a non-empty reason means
+            # the document was dropped for technical unavailability (RDA-058),
+            # which is recorded distinctly from a processed document.
+            reason = getattr(result, "reason", None)
+            produced = getattr(result, "chunk_ids", result)
+            if reason:
+                failed.append(doc_id)
+                status[doc_id] = f"failed:{reason}"
+                continue
             processed.append(doc_id)
-            chunk_ids.extend(chunks)
+            chunk_ids.extend(produced)
             status[doc_id] = "processed"
+        stats = dict(state.selection_stats)
+        stats["processed"] = len(processed)
+        stats["failed"] = len(failed)
+        stats["chunk_count"] = len(chunk_ids)
         state = state.model_copy(
             update={
                 "processed_document_ids": processed,
                 "failed_document_ids": failed,
                 "chunk_ids": chunk_ids,
                 "processing_status": status,
+                "selection_stats": stats,
             }
         )
         return WorkflowStateManager.transition(state, WorkflowStage.EXTRACTING)
@@ -357,8 +447,9 @@ class ResearchNodes:
         for task in state.tasks:
             if task.task_type != TaskType.EXTRACT:
                 continue
+            query = self._retrieval_query(state, task)
             state, retrieval, failed_operation = await self._execute_external(
-                state, WorkflowStage.EXTRACTING, self._retriever.retrieve, task.title,
+                state, WorkflowStage.EXTRACTING, self._retriever.retrieve, query,
                 terminal_on_failure=False,
             )
             if failed_operation:
@@ -368,7 +459,7 @@ class ResearchNodes:
             chunks = retrieval.chunks
             state, extraction, failed_operation = await self._execute_external(
                 state, WorkflowStage.EXTRACTING, self._claim_extractor.extract,
-                chunks, task.title, budget_operation="llm", terminal_on_failure=False,
+                chunks, query, budget_operation="llm", terminal_on_failure=False,
             )
             if failed_operation:
                 if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
@@ -395,6 +486,22 @@ class ResearchNodes:
         if self._llm is None:
             state = state.model_copy(update={"completed_at": datetime.now(UTC)})
             return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
+
+        # Quality gate (RDA-058): do not synthesize from an empty or clearly
+        # insufficient context. With no claims the previous behaviour produced
+        # a summary like "No claims were provided...", which is not a finding.
+        # Record a non-fatal warning and complete without fabricating a summary.
+        if not state.claims:
+            state = self._record_error(
+                state, WorkflowStage.SYNTHESIZING,
+                "Synthesis skipped: no claims were produced (retrieved context "
+                "was empty or insufficient)",
+                severity=ErrorSeverity.PROCESSING,
+                context={"claims": 0, "chunks": len(state.chunk_ids)},
+            )
+            state = state.model_copy(update={"completed_at": datetime.now(UTC)})
+            return WorkflowStateManager.transition(state, WorkflowStage.COMPLETED)
+
         state, response, failed = await self._execute_external(
             state, WorkflowStage.SYNTHESIZING,
             asyncio.to_thread,
