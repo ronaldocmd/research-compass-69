@@ -334,18 +334,11 @@ def test_run_persists_documents_chunks_and_summary(client: TestClient) -> None:
         gen.close()
 
 
-def test_run_without_persisted_research_uses_injected_orchestrator(
-    client: TestClient,
-) -> None:
-    # A non-existent research uses the injected orchestrator (no DB wiring).
+def test_run_without_persisted_research_returns_404(client: TestClient) -> None:
+    # A non-existent research must not fabricate a COMPLETED state (RDA-056).
     orchestrator = ResearchOrchestrator()
     app.dependency_overrides[_orchestrator] = lambda: orchestrator
     research_id = uuid.uuid4()
 
     run_resp = client.post(f"{BASE}/{research_id}/run")
-    assert run_resp.status_code == 200
-    assert run_resp.json()["current_stage"] == "COMPLETED"
-
-    status_resp = client.get(f"{BASE}/{research_id}/status")
-    assert status_resp.status_code == 200
-    assert status_resp.json()["execution_id"] == run_resp.json()["execution_id"]
+    assert run_resp.status_code == 404

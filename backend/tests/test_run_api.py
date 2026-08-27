@@ -9,11 +9,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.v1.endpoints.run import _orchestrator
+from app.api.v1.endpoints.run import _nodes_factory, _orchestrator
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.services.orchestration.nodes import ResearchNodes
 from app.services.orchestration.orchestrator import ResearchOrchestrator
 
 BASE = f"{settings.API_V1_PREFIX}/researches"
@@ -29,7 +30,7 @@ def client() -> Generator[TestClient, None, None]:
         poolclass=StaticPool,
         future=True,
     )
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables["researches"]])
+    Base.metadata.create_all(engine)
     factory: sessionmaker[Session] = sessionmaker(
         bind=engine, autoflush=False, autocommit=False, future=True
     )
@@ -51,7 +52,26 @@ def client() -> Generator[TestClient, None, None]:
 
 
 def test_run_and_status(client: TestClient) -> None:
-    research_id = uuid.uuid4()
+    # A run requires a persisted research (RDA-056); a non-existent id must
+    # not fabricate a COMPLETED state.
+    created = client.post(
+        BASE,
+        json={
+            "title": "Impacto de LLMs",
+            "objective": "Mapear literatura",
+            "question": "Qual o estado da arte?",
+        },
+    )
+    assert created.status_code == 201, created.text
+    research_id = created.json()["id"]
+
+    def fake_nodes_factory():
+        def build(session, rid):
+            return ResearchNodes()
+
+        return build
+
+    app.dependency_overrides[_nodes_factory] = fake_nodes_factory
 
     run_resp = client.post(f"{BASE}/{research_id}/run")
 
@@ -63,6 +83,11 @@ def test_run_and_status(client: TestClient) -> None:
     status_resp = client.get(f"{BASE}/{research_id}/status")
     assert status_resp.status_code == 200
     assert status_resp.json()["execution_id"] == body["execution_id"]
+
+
+def test_run_unknown_returns_404(client: TestClient) -> None:
+    resp = client.post(f"{BASE}/{uuid.uuid4()}/run")
+    assert resp.status_code == 404
 
 
 def test_status_unknown_returns_404(client: TestClient) -> None:

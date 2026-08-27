@@ -26,9 +26,15 @@ services:
     container_name: rda-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
+      # Inside the container network the database host is the `postgres`
+      # service, never `localhost` (which would point at the container
+      # itself). The .env DATABASE_URL is for local, non-Docker use (RDA-056).
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      # Inject the OpenAI-compatible key so the container does not fall back
+      # to the placeholder in backend/.env (RDA-056).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:

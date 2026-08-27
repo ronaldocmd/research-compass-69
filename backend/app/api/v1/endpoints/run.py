@@ -62,16 +62,21 @@ async def run_workflow(
     """
     service = ResearchService(db)
     research = service.repository.get(research_id)
-    if research is not None:
-        service.repository.update(research, started_at=datetime.now(UTC))
-        orchestrator = ResearchOrchestrator(
-            nodes=nodes_factory(db, research_id),
-            performance_tracker=PerformanceTracker(db),
+    if research is None:
+        # A run for a non-existent research must not fabricate a COMPLETED
+        # state via the default orchestrator (RDA-056).
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Research {research_id} not found",
         )
-        _orchestrators_by_research[research_id] = orchestrator
+    service.repository.update(research, started_at=datetime.now(UTC))
+    orchestrator = ResearchOrchestrator(
+        nodes=nodes_factory(db, research_id),
+        performance_tracker=PerformanceTracker(db),
+    )
+    _orchestrators_by_research[research_id] = orchestrator
     state = await orchestrator.run(research_id)
-    if research is not None:
-        service.repository.update(research, completed_at=datetime.now(UTC))
+    service.repository.update(research, completed_at=datetime.now(UTC))
     return state
 
 

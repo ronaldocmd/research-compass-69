@@ -217,3 +217,44 @@ def test_search_skips_non_dict_items_in_results() -> None:
 
     assert len(results) == 1
     assert results[0].external_id == "https://openalex.org/W2741809807"
+
+
+def test_search_prefers_direct_pdf_url() -> None:
+    """The provider must prefer a direct PDF URL over the DOI landing page
+    so the downloader can fetch full text (RDA-056)."""
+    work = {
+        "id": "https://openalex.org/W1",
+        "doi": "https://doi.org/10.1000/xyz",
+        "title": "PDF work",
+        "primary_location": {
+            "landing_page_url": "https://doi.org/10.1000/xyz",
+            "pdf_url": "https://example.org/paper.pdf",
+        },
+        "best_oa_location": {"pdf_url": "https://example.org/best.pdf"},
+        "open_access": {"oa_url": "https://example.org/oa.pdf"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(200, {"results": [work]})
+
+    provider = make_provider(handler)
+    result = provider.search("query")[0]
+
+    assert result.url == "https://example.org/best.pdf"
+
+
+def test_search_falls_back_to_oa_url_when_no_pdf_url() -> None:
+    work = {
+        "id": "https://openalex.org/W2",
+        "doi": "https://doi.org/10.1000/abc",
+        "title": "OA work",
+        "open_access": {"oa_url": "https://example.org/oa.pdf"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(200, {"results": [work]})
+
+    provider = make_provider(handler)
+    result = provider.search("query")[0]
+
+    assert result.url == "https://example.org/oa.pdf"

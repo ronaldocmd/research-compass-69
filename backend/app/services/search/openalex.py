@@ -101,10 +101,21 @@ class OpenAlexSearchProvider(SearchProvider):
         openalex_id = item.get("id")
 
         primary_location = item.get("primary_location") or {}
+        best_oa_location = item.get("best_oa_location") or {}
+        open_access = item.get("open_access") or {}
+
+        # Prefer a direct PDF URL so the downloader can fetch the full text
+        # instead of an HTML landing page (RDA-056). Without this the pipeline
+        # only ever sees doi.org landing pages and produces no chunks.
+        pdf_url = (
+            (best_oa_location.get("pdf_url") if isinstance(best_oa_location, dict) else None)
+            or (primary_location.get("pdf_url") if isinstance(primary_location, dict) else None)
+            or (open_access.get("oa_url") if isinstance(open_access, dict) else None)
+        )
         landing_page_url = (
             primary_location.get("landing_page_url") if isinstance(primary_location, dict) else None
         )
-        url = doi_url or landing_page_url or openalex_id
+        url = pdf_url or doi_url or landing_page_url or openalex_id
 
         authors = self._extract_authors(item.get("authorships"))
         abstract = self._reconstruct_abstract(item.get("abstract_inverted_index"))

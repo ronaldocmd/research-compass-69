@@ -7,7 +7,7 @@ real network or a real document URL.
 import httpx
 import pytest
 
-from app.services.downloader.downloader import DocumentDownloader
+from app.services.downloader.downloader import MAX_REDIRECTS, DocumentDownloader
 from app.services.downloader.exceptions import (
     DownloadError,
     DownloadHTTPError,
@@ -266,3 +266,38 @@ def test_download_rejects_blocked_url_before_any_request() -> None:
     downloader = make_downloader(handler, ssrf_guard=guard)
     with pytest.raises(SSRFBlockedError):
         downloader.download("http://169.254.169.254/latest/meta-data/")
+
+
+# --- production path (no injected client) (RDA-056) ------------------------
+
+
+def test_production_path_builds_client_with_max_redirects(monkeypatch) -> None:
+    """Without an injected client the downloader must build an httpx.Client
+    with the redirect cap, not call httpx.get() with unsupported kwargs."""
+
+    captured: dict = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs) -> None:
+            captured.update(kwargs)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def get(self, url, **kwargs) -> httpx.Response:
+            return httpx.Response(
+                200,
+                content=PDF_BYTES,
+                headers={"content-type": "application/pdf"},
+            )
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+    downloader = DocumentDownloader(ssrf_guard=_PermissiveGuard())
+    result = downloader.download("https://example.org/paper.pdf")
+
+    assert captured["max_redirects"] == MAX_REDIRECTS
+    assert captured["follow_redirects"] is True
+    assert result.content == PDF_BYTES

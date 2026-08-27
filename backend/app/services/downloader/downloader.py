@@ -77,13 +77,16 @@ class DocumentDownloader:
                     url, timeout=self._timeout, follow_redirects=True
                 )
             else:
-                response = httpx.get(
-                    url,
+                # httpx.get() does not accept max_redirects/transport; use a
+                # Client so the redirect cap and SSRF transport are honoured
+                # on the production path (RDA-056).
+                with httpx.Client(
                     timeout=self._timeout,
                     follow_redirects=True,
                     max_redirects=MAX_REDIRECTS,
                     transport=self._make_transport(),
-                )
+                ) as client:
+                    response = client.get(url)
         except httpx.TimeoutException as exc:
             raise DownloadTimeoutError(f"Download timed out for {url}") from exc
         except httpx.HTTPError as exc:
