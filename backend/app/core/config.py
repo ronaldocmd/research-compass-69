@@ -53,13 +53,21 @@ class Settings(BaseSettings):
     # Retrieval (RDA-024). Default top-K and minimum cosine-similarity
     # threshold for DocumentRetriever; both can be overridden per-call.
     #
-    # RETRIEVAL_MIN_SCORE was calibrated empirically in RDA-058 against the
-    # RDA-057 gold benchmark: the previous 0.7 sat above the relevant-score
-    # cluster (p75 ~0.65) and collapsed recall (R@5 0.14, F1 0.13). The
-    # threshold sweep showed 0.5 is the best operating point (F1 0.64,
-    # P 0.68, R 0.61) balancing quality, coverage and context cost.
+    # RETRIEVAL_MIN_SCORE was calibrated empirically in RDA-059 for the
+    # production scenario, where the research question is in Portuguese and
+    # the relevant academic documents are in English (cross-lingual). The
+    # embedding model (text-embedding-3-small) is natively multilingual, but
+    # cross-lingual cosine scores are systematically ~0.1 lower than
+    # same-language scores. The RDA-058 value of 0.5, calibrated on an
+    # English-only benchmark, sat above the relevant PT->EN cluster (p25
+    # ~0.47) and dropped ~45% of relevant chunks (recall 0.55). The
+    # cross-lingual threshold sweep shows 0.40 is the best operating point
+    # (F1 0.62, recall 0.95, precision 0.46), and it also improves the
+    # English-only benchmark (R@5 0.63 -> 0.80). For a RAG pipeline recall
+    # matters more than precision: content not retrieved cannot be
+    # synthesized, and the downstream evidence/claims stage filters noise.
     RETRIEVAL_TOP_K: int = 5
-    RETRIEVAL_MIN_SCORE: float = 0.5
+    RETRIEVAL_MIN_SCORE: float = 0.40
 
     # Document selection (RDA-058). Minimum cosine similarity between a
     # search result (title+abstract) and the research question for the result

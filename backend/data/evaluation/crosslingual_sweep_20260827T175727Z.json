@@ -1,0 +1,158 @@
+{
+  "audit": "RDA-059 threshold sweep cross-lingual",
+  "timestamp": "2026-08-27T17:57:27.486687+00:00",
+  "commit": "2961c6f959ebd8d1b1fdfd43cafa353f094975d1",
+  "embedding_model": "text-embedding-3-small",
+  "sweep": {
+    "PT": [
+      {
+        "threshold": 0.3,
+        "tp": 20,
+        "fp": 44,
+        "fn": 0,
+        "precision": 0.3125,
+        "recall": 1.0,
+        "f1": 0.4762
+      },
+      {
+        "threshold": 0.35,
+        "tp": 20,
+        "fp": 37,
+        "fn": 0,
+        "precision": 0.3509,
+        "recall": 1.0,
+        "f1": 0.5195
+      },
+      {
+        "threshold": 0.4,
+        "tp": 19,
+        "fp": 22,
+        "fn": 1,
+        "precision": 0.4634,
+        "recall": 0.95,
+        "f1": 0.623
+      },
+      {
+        "threshold": 0.45,
+        "tp": 16,
+        "fp": 16,
+        "fn": 4,
+        "precision": 0.5,
+        "recall": 0.8,
+        "f1": 0.6154
+      },
+      {
+        "threshold": 0.5,
+        "tp": 11,
+        "fp": 9,
+        "fn": 9,
+        "precision": 0.55,
+        "recall": 0.55,
+        "f1": 0.55
+      },
+      {
+        "threshold": 0.55,
+        "tp": 7,
+        "fp": 5,
+        "fn": 13,
+        "precision": 0.5833,
+        "recall": 0.35,
+        "f1": 0.4375
+      },
+      {
+        "threshold": 0.6,
+        "tp": 4,
+        "fp": 5,
+        "fn": 16,
+        "precision": 0.4444,
+        "recall": 0.2,
+        "f1": 0.2759
+      }
+    ],
+    "EN": [
+      {
+        "threshold": 0.3,
+        "tp": 20,
+        "fp": 45,
+        "fn": 0,
+        "precision": 0.3077,
+        "recall": 1.0,
+        "f1": 0.4706
+      },
+      {
+        "threshold": 0.35,
+        "tp": 20,
+        "fp": 34,
+        "fn": 0,
+        "precision": 0.3704,
+        "recall": 1.0,
+        "f1": 0.5405
+      },
+      {
+        "threshold": 0.4,
+        "tp": 20,
+        "fp": 23,
+        "fn": 0,
+        "precision": 0.4651,
+        "recall": 1.0,
+        "f1": 0.6349
+      },
+      {
+        "threshold": 0.45,
+        "tp": 18,
+        "fp": 20,
+        "fn": 2,
+        "precision": 0.4737,
+        "recall": 0.9,
+        "f1": 0.6207
+      },
+      {
+        "threshold": 0.5,
+        "tp": 17,
+        "fp": 12,
+        "fn": 3,
+        "precision": 0.5862,
+        "recall": 0.85,
+        "f1": 0.6939
+      },
+      {
+        "threshold": 0.55,
+        "tp": 16,
+        "fp": 7,
+        "fn": 4,
+        "precision": 0.6957,
+        "recall": 0.8,
+        "f1": 0.7442
+      },
+      {
+        "threshold": 0.6,
+        "tp": 12,
+        "fp": 4,
+        "fn": 8,
+        "precision": 0.75,
+        "recall": 0.6,
+        "f1": 0.6667
+      }
+    ]
+  },
+  "pt_score_distribution": {
+    "relevant": {
+      "count": 20,
+      "mean": 0.526,
+      "min": 0.3922,
+      "max": 0.7317,
+      "p25": 0.4655,
+      "p50": 0.5222,
+      "p75": 0.5925
+    },
+    "irrelevant": {
+      "count": 260,
+      "mean": 0.219,
+      "min": 0.0178,
+      "max": 0.8564,
+      "p25": 0.1462,
+      "p50": 0.186,
+      "p75": 0.2573
+    }
+  }
+}

@@ -1,0 +1,1050 @@
+{
+  "audit": "RDA-057 retrieval",
+  "timestamp": "2026-08-27T18:02:02.205118+00:00",
+  "commit": "2961c6f959ebd8d1b1fdfd43cafa353f094975d1",
+  "embedding_model": "text-embedding-3-small",
+  "embedding_dimension": 1536,
+  "retriever_top_k": 5,
+  "retriever_min_score": 0.4,
+  "corpus_size": 24,
+  "query_count": 14,
+  "aggregates": {
+    "P@1": 0.7857,
+    "P@3": 0.5,
+    "P@5": 0.3286,
+    "P@10": 0.1643,
+    "R@3": 0.744,
+    "R@5": 0.8036,
+    "R@10": 0.8036,
+    "Hit@5": 0.9286,
+    "Hit@10": 0.9286,
+    "MRR": 0.8452,
+    "NDCG@5": 0.7635,
+    "NDCG@10": 0.7635
+  },
+  "score_separation": {
+    "relevant": {
+      "count": 28,
+      "mean": 0.5371,
+      "min": 0.174,
+      "max": 0.8736,
+      "p25": 0.4498,
+      "p50": 0.5736,
+      "p75": 0.6516
+    },
+    "irrelevant": {
+      "count": 308,
+      "mean": 0.2258,
+      "min": 0.0456,
+      "max": 0.7189,
+      "p25": 0.1609,
+      "p50": 0.2043,
+      "p75": 0.269
+    },
+    "per_query": [
+      {
+        "query_id": "q01_easy_sr",
+        "relevant_scores": [
+          0.6011,
+          0.5736,
+          0.5668
+        ],
+        "irrelevant_scores": [
+          0.392,
+          0.3704,
+          0.3224,
+          0.2828,
+          0.2522,
+          0.2469,
+          0.225,
+          0.2244,
+          0.2198,
+          0.2181,
+          0.217,
+          0.1913,
+          0.1885,
+          0.1707,
+          0.1703,
+          0.1635,
+          0.1513,
+          0.1507,
+          0.1431,
+          0.142,
+          0.1298
+        ]
+      },
+      {
+        "query_id": "q02_easy_code",
+        "relevant_scores": [
+          0.6459,
+          0.581
+        ],
+        "irrelevant_scores": [
+          0.5234,
+          0.4668,
+          0.3707,
+          0.3534,
+          0.326,
+          0.3009,
+          0.2994,
+          0.2973,
+          0.2693,
+          0.2636,
+          0.2556,
+          0.2547,
+          0.2472,
+          0.2163,
+          0.2158,
+          0.2138,
+          0.1985,
+          0.1892,
+          0.1835,
+          0.18,
+          0.1799,
+          0.154
+        ]
+      },
+      {
+        "query_id": "q03_easy_lung",
+        "relevant_scores": [
+          0.6719,
+          0.6516
+        ],
+        "irrelevant_scores": [
+          0.7189,
+          0.7043,
+          0.304,
+          0.2353,
+          0.2241,
+          0.2229,
+          0.2084,
+          0.2059,
+          0.1968,
+          0.1879,
+          0.1626,
+          0.1604,
+          0.1587,
+          0.1405,
+          0.1317,
+          0.1269,
+          0.12,
+          0.1191,
+          0.1129,
+          0.1078,
+          0.0982,
+          0.0643
+        ]
+      },
+      {
+        "query_id": "q04_medium_rec",
+        "relevant_scores": [
+          0.6966,
+          0.5335,
+          0.4859
+        ],
+        "irrelevant_scores": [
+          0.3887,
+          0.3604,
+          0.2361,
+          0.2352,
+          0.2256,
+          0.2245,
+          0.2223,
+          0.2207,
+          0.2008,
+          0.2002,
+          0.1932,
+          0.188,
+          0.1795,
+          0.1786,
+          0.1765,
+          0.1746,
+          0.1652,
+          0.1642,
+          0.158,
+          0.1429,
+          0.1396
+        ]
+      },
+      {
+        "query_id": "q05_medium_cot",
+        "relevant_scores": [
+          0.6152,
+          0.5966
+        ],
+        "irrelevant_scores": [
+          0.6168,
+          0.5604,
+          0.3146,
+          0.2931,
+          0.2604,
+          0.2276,
+          0.2065,
+          0.1971,
+          0.1935,
+          0.1861,
+          0.1842,
+          0.1821,
+          0.1584,
+          0.1447,
+          0.1351,
+          0.135,
+          0.1324,
+          0.1223,
+          0.1179,
+          0.1065,
+          0.0786,
+          0.0456
+        ]
+      },
+      {
+        "query_id": "q06_medium_emb",
+        "relevant_scores": [
+          0.6994,
+          0.443,
+          0.4109
+        ],
+        "irrelevant_scores": [
+          0.5363,
+          0.3815,
+          0.3413,
+          0.3027,
+          0.2686,
+          0.251,
+          0.2324,
+          0.2281,
+          0.2276,
+          0.2247,
+          0.2098,
+          0.2002,
+          0.1985,
+          0.1979,
+          0.1817,
+          0.1789,
+          0.1685,
+          0.1685,
+          0.167,
+          0.1388,
+          0.1186
+        ]
+      },
+      {
+        "query_id": "q07_hard_sr",
+        "relevant_scores": [
+          0.8736
+        ],
+        "irrelevant_scores": [
+          0.4331,
+          0.4223,
+          0.4049,
+          0.3157,
+          0.2304,
+          0.2296,
+          0.2182,
+          0.2125,
+          0.2115,
+          0.2059,
+          0.1987,
+          0.1982,
+          0.1922,
+          0.1913,
+          0.184,
+          0.1641,
+          0.147,
+          0.1458,
+          0.1263,
+          0.1122,
+          0.1104,
+          0.1016,
+          0.0484
+        ]
+      },
+      {
+        "query_id": "q08_hard_code",
+        "relevant_scores": [
+          0.689
+        ],
+        "irrelevant_scores": [
+          0.5697,
+          0.5228,
+          0.4884,
+          0.36,
+          0.3572,
+          0.2897,
+          0.283,
+          0.2496,
+          0.2137,
+          0.2129,
+          0.2121,
+          0.2032,
+          0.1999,
+          0.1993,
+          0.1723,
+          0.1702,
+          0.1538,
+          0.1482,
+          0.1471,
+          0.1457,
+          0.1117,
+          0.0852,
+          0.0512
+        ]
+      },
+      {
+        "query_id": "q09_synonym",
+        "relevant_scores": [
+          0.5155,
+          0.4614
+        ],
+        "irrelevant_scores": [
+          0.3415,
+          0.3272,
+          0.322,
+          0.3025,
+          0.2806,
+          0.2798,
+          0.2583,
+          0.2497,
+          0.2485,
+          0.2148,
+          0.2061,
+          0.2035,
+          0.203,
+          0.1934,
+          0.1931,
+          0.1858,
+          0.1855,
+          0.1777,
+          0.1658,
+          0.1427,
+          0.1301,
+          0.1132
+        ]
+      },
+      {
+        "query_id": "q10_negative",
+        "relevant_scores": [],
+        "irrelevant_scores": [
+          0.321,
+          0.3128,
+          0.3054,
+          0.3047,
+          0.3024,
+          0.2898,
+          0.2525,
+          0.2129,
+          0.2018,
+          0.1877,
+          0.1855,
+          0.1808,
+          0.1786,
+          0.1766,
+          0.1662,
+          0.1618,
+          0.1422,
+          0.1412,
+          0.1298,
+          0.1221,
+          0.1194,
+          0.1177,
+          0.1172,
+          0.0675
+        ]
+      },
+      {
+        "query_id": "q11_ambiguous",
+        "relevant_scores": [
+          0.4836,
+          0.312
+        ],
+        "irrelevant_scores": [
+          0.4828,
+          0.3587,
+          0.3019,
+          0.2814,
+          0.2194,
+          0.213,
+          0.2129,
+          0.2043,
+          0.1969,
+          0.1909,
+          0.1862,
+          0.1663,
+          0.1609,
+          0.159,
+          0.1577,
+          0.1506,
+          0.142,
+          0.1371,
+          0.1314,
+          0.1287,
+          0.1215,
+          0.1053
+        ]
+      },
+      {
+        "query_id": "q12_adversarial_lexical",
+        "relevant_scores": [
+          0.4498,
+          0.3498
+        ],
+        "irrelevant_scores": [
+          0.4204,
+          0.3707,
+          0.3662,
+          0.3406,
+          0.3344,
+          0.3322,
+          0.3203,
+          0.3106,
+          0.295,
+          0.2938,
+          0.2937,
+          0.2915,
+          0.2732,
+          0.2602,
+          0.2458,
+          0.2443,
+          0.2429,
+          0.2386,
+          0.2337,
+          0.2276,
+          0.2171,
+          0.1831
+        ]
+      },
+      {
+        "query_id": "q13_specific",
+        "relevant_scores": [
+          0.7359
+        ],
+        "irrelevant_scores": [
+          0.4154,
+          0.4066,
+          0.3917,
+          0.3815,
+          0.3083,
+          0.2647,
+          0.2279,
+          0.2244,
+          0.2078,
+          0.2075,
+          0.1957,
+          0.1936,
+          0.1821,
+          0.1782,
+          0.1748,
+          0.1648,
+          0.1459,
+          0.1397,
+          0.1384,
+          0.1245,
+          0.1239,
+          0.1163,
+          0.0473
+        ]
+      },
+      {
+        "query_id": "q14_broad",
+        "relevant_scores": [
+          0.5907,
+          0.3401,
+          0.2893,
+          0.174
+        ],
+        "irrelevant_scores": [
+          0.3855,
+          0.3642,
+          0.3311,
+          0.3271,
+          0.2778,
+          0.269,
+          0.2527,
+          0.246,
+          0.2386,
+          0.2369,
+          0.2267,
+          0.2256,
+          0.2245,
+          0.2107,
+          0.1967,
+          0.1716,
+          0.1566,
+          0.1307,
+          0.1302,
+          0.1211
+        ]
+      }
+    ]
+  },
+  "threshold_sweep": [
+    {
+      "threshold": 0.5,
+      "tp": 17,
+      "fp": 8,
+      "fn": 11,
+      "precision": 0.68,
+      "recall": 0.6071,
+      "f1": 0.6415
+    },
+    {
+      "threshold": 0.55,
+      "tp": 15,
+      "fp": 5,
+      "fn": 13,
+      "precision": 0.75,
+      "recall": 0.5357,
+      "f1": 0.625
+    },
+    {
+      "threshold": 0.6,
+      "tp": 10,
+      "fp": 3,
+      "fn": 18,
+      "precision": 0.7692,
+      "recall": 0.3571,
+      "f1": 0.4878
+    },
+    {
+      "threshold": 0.65,
+      "tp": 7,
+      "fp": 2,
+      "fn": 21,
+      "precision": 0.7778,
+      "recall": 0.25,
+      "f1": 0.3784
+    },
+    {
+      "threshold": 0.7,
+      "tp": 2,
+      "fp": 2,
+      "fn": 26,
+      "precision": 0.5,
+      "recall": 0.0714,
+      "f1": 0.125
+    },
+    {
+      "threshold": 0.75,
+      "tp": 1,
+      "fp": 0,
+      "fn": 27,
+      "precision": 1.0,
+      "recall": 0.0357,
+      "f1": 0.069
+    },
+    {
+      "threshold": 0.8,
+      "tp": 1,
+      "fp": 0,
+      "fn": 27,
+      "precision": 1.0,
+      "recall": 0.0357,
+      "f1": 0.069
+    }
+  ],
+  "topk_sweep": [
+    {
+      "top_k": 3,
+      "tp": 21,
+      "fp": 21,
+      "fn": 7,
+      "precision": 0.5,
+      "recall": 0.75,
+      "f1": 0.6
+    },
+    {
+      "top_k": 5,
+      "tp": 26,
+      "fp": 44,
+      "fn": 2,
+      "precision": 0.3714,
+      "recall": 0.9286,
+      "f1": 0.5306
+    },
+    {
+      "top_k": 10,
+      "tp": 27,
+      "fp": 113,
+      "fn": 1,
+      "precision": 0.1929,
+      "recall": 0.9643,
+      "f1": 0.3214
+    },
+    {
+      "top_k": 20,
+      "tp": 28,
+      "fp": 252,
+      "fn": 0,
+      "precision": 0.1,
+      "recall": 1.0,
+      "f1": 0.1818
+    }
+  ],
+  "per_query": [
+    {
+      "query_id": "q01_easy_sr",
+      "difficulty": "easy",
+      "adversarial": null,
+      "question": "What are efficient search methods for systematic reviews?",
+      "P@1": 1.0,
+      "R@1": 0.3333,
+      "Hit@1": 1,
+      "P@3": 1.0,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.6,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.3,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 0.9299,
+      "NDCG@10": 0.9299,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.6011,
+        0.5736,
+        0.5668
+      ],
+      "irrelevant_scores": [],
+      "ranked_chunk_ids": [
+        "6ad5064b-2a26-53a8-ad1b-30d2ade0d9db",
+        "80e71b0c-9d13-5415-8cab-ff71530e857a",
+        "57ada253-d597-5f22-b8c0-4422a2e8905c"
+      ],
+      "total_found": 3
+    },
+    {
+      "query_id": "q02_easy_code",
+      "difficulty": "easy",
+      "adversarial": null,
+      "question": "How is code generation by large language models evaluated?",
+      "P@1": 1.0,
+      "R@1": 0.5,
+      "Hit@1": 1,
+      "P@3": 0.6667,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.4,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.2,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 0.9134,
+      "NDCG@10": 0.9134,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.6459,
+        0.581
+      ],
+      "irrelevant_scores": [
+        0.5234,
+        0.4668
+      ],
+      "ranked_chunk_ids": [
+        "86975847-1f50-5d3e-a02b-9960df5ca4f0",
+        "2ded14b3-30b6-5609-a254-60fdea623935",
+        "431f0970-f2e7-5cec-8de6-f0953acf5e5f",
+        "6660ee67-a3c8-52bc-8a2b-d5855cb50c38"
+      ],
+      "total_found": 4
+    },
+    {
+      "query_id": "q03_easy_lung",
+      "difficulty": "easy",
+      "adversarial": null,
+      "question": "How is deep learning used to diagnose lung cancer?",
+      "P@1": 0.0,
+      "R@1": 0.0,
+      "Hit@1": 0,
+      "P@3": 0.3333,
+      "R@3": 0.5,
+      "Hit@3": 1,
+      "P@5": 0.4,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.2,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 0.5706,
+      "NDCG@10": 0.5706,
+      "MRR": 0.3333,
+      "relevant_scores": [
+        0.6719,
+        0.6516
+      ],
+      "irrelevant_scores": [
+        0.7189,
+        0.7043
+      ],
+      "ranked_chunk_ids": [
+        "0789c6da-5989-5b43-aa6b-e7516f7a00c9",
+        "507ed063-1e81-53fd-bef7-1f8cfad0d903",
+        "960809d3-d9d5-5d44-9b17-e10fb94b4086",
+        "8e91e483-d9b0-52d7-8686-219adbb06082"
+      ],
+      "total_found": 4
+    },
+    {
+      "query_id": "q04_medium_rec",
+      "difficulty": "medium",
+      "adversarial": null,
+      "question": "What metrics are used to evaluate recommender systems?",
+      "P@1": 1.0,
+      "R@1": 0.3333,
+      "Hit@1": 1,
+      "P@3": 1.0,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.6,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.3,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.6967,
+        0.5334,
+        0.4858
+      ],
+      "irrelevant_scores": [],
+      "ranked_chunk_ids": [
+        "9255f05a-e063-5019-9f6e-38dc253c6df8",
+        "83341b76-0a3a-5451-825d-d8d2cff4345a",
+        "00491563-f118-5f57-b875-74983d49262a"
+      ],
+      "total_found": 3
+    },
+    {
+      "query_id": "q05_medium_cot",
+      "difficulty": "medium",
+      "adversarial": null,
+      "question": "When is chain-of-thought prompting effective?",
+      "P@1": 0.0,
+      "R@1": 0.0,
+      "Hit@1": 0,
+      "P@3": 0.6667,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.4,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.2,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 0.648,
+      "NDCG@10": 0.648,
+      "MRR": 0.5,
+      "relevant_scores": [
+        0.6152,
+        0.5966
+      ],
+      "irrelevant_scores": [
+        0.6168,
+        0.5604
+      ],
+      "ranked_chunk_ids": [
+        "687f19cf-bc26-5b4f-8e89-b08d14d709e2",
+        "e32454a6-a937-562f-b3ed-8ec74b801fd3",
+        "77d1052e-92d7-5537-a6a8-691b39ae4d4d",
+        "a8b921c8-afcf-5890-b42f-5126778fcb14"
+      ],
+      "total_found": 4
+    },
+    {
+      "query_id": "q06_medium_emb",
+      "difficulty": "medium",
+      "adversarial": null,
+      "question": "What are the limitations of vector embeddings for semantic search?",
+      "P@1": 1.0,
+      "R@1": 0.3333,
+      "Hit@1": 1,
+      "P@3": 0.6667,
+      "R@3": 0.6667,
+      "Hit@3": 1,
+      "P@5": 0.6,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.3,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 0.9239,
+      "NDCG@10": 0.9239,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.6994,
+        0.443,
+        0.4109
+      ],
+      "irrelevant_scores": [
+        0.5363
+      ],
+      "ranked_chunk_ids": [
+        "ad917dbb-b864-592f-ae86-ef2d64765f6a",
+        "c57c349a-713b-5635-a42f-5b2a0fe57adc",
+        "39103c91-694c-59ce-ab7a-3eddf1f2c91c",
+        "0db5abb0-c5e7-5b74-9475-ada64b03d12b"
+      ],
+      "total_found": 4
+    },
+    {
+      "query_id": "q07_hard_sr",
+      "difficulty": "hard",
+      "adversarial": null,
+      "question": "How does the PICO framework structure clinical search questions?",
+      "P@1": 1.0,
+      "R@1": 1.0,
+      "Hit@1": 1,
+      "P@3": 0.3333,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.2,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.1,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.8736
+      ],
+      "irrelevant_scores": [
+        0.4331,
+        0.4223,
+        0.4049
+      ],
+      "ranked_chunk_ids": [
+        "653d549d-0700-51c0-aaa1-81627e6717f2",
+        "80e71b0c-9d13-5415-8cab-ff71530e857a",
+        "6ad5064b-2a26-53a8-ad1b-30d2ade0d9db",
+        "57ada253-d597-5f22-b8c0-4422a2e8905c"
+      ],
+      "total_found": 4
+    },
+    {
+      "query_id": "q08_hard_code",
+      "difficulty": "hard",
+      "adversarial": null,
+      "question": "What are the failure modes of code generation models?",
+      "P@1": 1.0,
+      "R@1": 1.0,
+      "Hit@1": 1,
+      "P@3": 0.3333,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.2,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.1,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.689
+      ],
+      "irrelevant_scores": [
+        0.5697,
+        0.5228,
+        0.4884
+      ],
+      "ranked_chunk_ids": [
+        "431f0970-f2e7-5cec-8de6-f0953acf5e5f",
+        "2ded14b3-30b6-5609-a254-60fdea623935",
+        "6660ee67-a3c8-52bc-8a2b-d5855cb50c38",
+        "86975847-1f50-5d3e-a02b-9960df5ca4f0"
+      ],
+      "total_found": 4
+    },
+    {
+      "query_id": "q09_synonym",
+      "difficulty": "medium",
+      "adversarial": "synonym",
+      "question": "How do we measure the quality of ranked lists in information retrieval?",
+      "P@1": 1.0,
+      "R@1": 0.5,
+      "Hit@1": 1,
+      "P@3": 0.6667,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.4,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.2,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.5155,
+        0.4614
+      ],
+      "irrelevant_scores": [],
+      "ranked_chunk_ids": [
+        "9255f05a-e063-5019-9f6e-38dc253c6df8",
+        "cd2c48a7-fd70-5c6b-8605-32062c4fd265"
+      ],
+      "total_found": 2
+    },
+    {
+      "query_id": "q10_negative",
+      "difficulty": "hard",
+      "adversarial": "negative",
+      "question": "What are the best practices for training reinforcement learning agents in robotics?",
+      "P@1": 0.0,
+      "R@1": 0.0,
+      "Hit@1": 0,
+      "P@3": 0.0,
+      "R@3": 0.0,
+      "Hit@3": 0,
+      "P@5": 0.0,
+      "R@5": 0.0,
+      "Hit@5": 0,
+      "P@10": 0.0,
+      "R@10": 0.0,
+      "Hit@10": 0,
+      "NDCG@5": 0.0,
+      "NDCG@10": 0.0,
+      "MRR": 0.0,
+      "relevant_scores": [],
+      "irrelevant_scores": [],
+      "ranked_chunk_ids": [],
+      "total_found": 0
+    },
+    {
+      "query_id": "q11_ambiguous",
+      "difficulty": "medium",
+      "adversarial": "ambiguous",
+      "question": "What is the role of models in medical imaging?",
+      "P@1": 1.0,
+      "R@1": 0.5,
+      "Hit@1": 1,
+      "P@3": 0.3333,
+      "R@3": 0.5,
+      "Hit@3": 1,
+      "P@5": 0.2,
+      "R@5": 0.5,
+      "Hit@5": 1,
+      "P@10": 0.1,
+      "R@10": 0.5,
+      "Hit@10": 1,
+      "NDCG@5": 0.6131,
+      "NDCG@10": 0.6131,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.4836
+      ],
+      "irrelevant_scores": [
+        0.4828
+      ],
+      "ranked_chunk_ids": [
+        "8e91e483-d9b0-52d7-8686-219adbb06082",
+        "507ed063-1e81-53fd-bef7-1f8cfad0d903"
+      ],
+      "total_found": 2
+    },
+    {
+      "query_id": "q12_adversarial_lexical",
+      "difficulty": "hard",
+      "adversarial": "lexical",
+      "question": "How do neural network models evaluate the quality of search results?",
+      "P@1": 1.0,
+      "R@1": 0.5,
+      "Hit@1": 1,
+      "P@3": 0.3333,
+      "R@3": 0.5,
+      "Hit@3": 1,
+      "P@5": 0.2,
+      "R@5": 0.5,
+      "Hit@5": 1,
+      "P@10": 0.1,
+      "R@10": 0.5,
+      "Hit@10": 1,
+      "NDCG@5": 0.6131,
+      "NDCG@10": 0.6131,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.4498
+      ],
+      "irrelevant_scores": [
+        0.4204
+      ],
+      "ranked_chunk_ids": [
+        "9255f05a-e063-5019-9f6e-38dc253c6df8",
+        "39103c91-694c-59ce-ab7a-3eddf1f2c91c"
+      ],
+      "total_found": 2
+    },
+    {
+      "query_id": "q13_specific",
+      "difficulty": "hard",
+      "adversarial": "specific",
+      "question": "What is the pass@k metric in code generation evaluation?",
+      "P@1": 1.0,
+      "R@1": 1.0,
+      "Hit@1": 1,
+      "P@3": 0.3333,
+      "R@3": 1.0,
+      "Hit@3": 1,
+      "P@5": 0.2,
+      "R@5": 1.0,
+      "Hit@5": 1,
+      "P@10": 0.1,
+      "R@10": 1.0,
+      "Hit@10": 1,
+      "NDCG@5": 1.0,
+      "NDCG@10": 1.0,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.7369
+      ],
+      "irrelevant_scores": [
+        0.4166,
+        0.4083
+      ],
+      "ranked_chunk_ids": [
+        "2ded14b3-30b6-5609-a254-60fdea623935",
+        "6660ee67-a3c8-52bc-8a2b-d5855cb50c38",
+        "431f0970-f2e7-5cec-8de6-f0953acf5e5f"
+      ],
+      "total_found": 3
+    },
+    {
+      "query_id": "q14_broad",
+      "difficulty": "easy",
+      "adversarial": "broad",
+      "question": "What are the applications and limitations of large language models?",
+      "P@1": 1.0,
+      "R@1": 0.25,
+      "Hit@1": 1,
+      "P@3": 0.3333,
+      "R@3": 0.25,
+      "Hit@3": 1,
+      "P@5": 0.2,
+      "R@5": 0.25,
+      "Hit@5": 1,
+      "P@10": 0.1,
+      "R@10": 0.25,
+      "Hit@10": 1,
+      "NDCG@5": 0.477,
+      "NDCG@10": 0.477,
+      "MRR": 1.0,
+      "relevant_scores": [
+        0.5907
+      ],
+      "irrelevant_scores": [],
+      "ranked_chunk_ids": [
+        "86975847-1f50-5d3e-a02b-9960df5ca4f0"
+      ],
+      "total_found": 1
+    }
+  ]
+}

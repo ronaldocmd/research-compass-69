@@ -1,0 +1,191 @@
+{
+  "audit": "RDA-059 cross-lingual retrieval",
+  "timestamp": "2026-08-27T18:01:19.715994+00:00",
+  "commit": "2961c6f959ebd8d1b1fdfd43cafa353f094975d1",
+  "embedding_model": "text-embedding-3-small",
+  "embedding_dimension": 1536,
+  "threshold": 0.4,
+  "top_k": 20,
+  "matrix": {
+    "PT->EN": {
+      "count": 20,
+      "mean": 0.5259,
+      "min": 0.3921,
+      "max": 0.7317,
+      "retrieved_at_threshold": 19,
+      "total_relevant": 20,
+      "recall_at_threshold": 0.95
+    },
+    "EN->EN": {
+      "count": 20,
+      "mean": 0.6211,
+      "min": 0.411,
+      "max": 0.8736,
+      "retrieved_at_threshold": 20,
+      "total_relevant": 20,
+      "recall_at_threshold": 1.0
+    }
+  },
+  "per_pair": [
+    {
+      "pair_id": "p01_sr",
+      "topic": "systematic_review",
+      "PT_raw_scores": {
+        "SR1": 0.5366,
+        "SR3": 0.5628,
+        "SR4": 0.5288
+      },
+      "PT_retrieved": 3,
+      "PT_total": 3,
+      "EN_raw_scores": {
+        "SR1": 0.5736,
+        "SR3": 0.5668,
+        "SR4": 0.6012
+      },
+      "EN_retrieved": 3,
+      "EN_total": 3
+    },
+    {
+      "pair_id": "p02_code",
+      "topic": "llm_code",
+      "PT_raw_scores": {
+        "CODE2": 0.5222,
+        "CODE1": 0.4875
+      },
+      "PT_retrieved": 2,
+      "PT_total": 2,
+      "EN_raw_scores": {
+        "CODE2": 0.581,
+        "CODE1": 0.6459
+      },
+      "EN_retrieved": 2,
+      "EN_total": 2
+    },
+    {
+      "pair_id": "p03_lung",
+      "topic": "lung_cancer",
+      "PT_raw_scores": {
+        "LUNG1": 0.5143,
+        "LUNG2": 0.4436
+      },
+      "PT_retrieved": 2,
+      "PT_total": 2,
+      "EN_raw_scores": {
+        "LUNG1": 0.6515,
+        "LUNG2": 0.6719
+      },
+      "EN_retrieved": 2,
+      "EN_total": 2
+    },
+    {
+      "pair_id": "p04_rec",
+      "topic": "recommendation",
+      "PT_raw_scores": {
+        "REC1": 0.6076,
+        "REC2": 0.4488,
+        "REC3": 0.4702
+      },
+      "PT_retrieved": 3,
+      "PT_total": 3,
+      "EN_raw_scores": {
+        "REC1": 0.6966,
+        "REC2": 0.4859,
+        "REC3": 0.5335
+      },
+      "EN_retrieved": 3,
+      "EN_total": 3
+    },
+    {
+      "pair_id": "p05_cot",
+      "topic": "chain_of_thought",
+      "PT_raw_scores": {
+        "COT2": 0.4651,
+        "COT1": 0.4655
+      },
+      "PT_retrieved": 2,
+      "PT_total": 2,
+      "EN_raw_scores": {
+        "COT2": 0.5966,
+        "COT1": 0.6152
+      },
+      "EN_retrieved": 2,
+      "EN_total": 2
+    },
+    {
+      "pair_id": "p06_emb",
+      "topic": "embeddings",
+      "PT_raw_scores": {
+        "EMB2": 0.6027,
+        "EMB3": 0.4262,
+        "EMB4": 0.3921
+      },
+      "PT_retrieved": 2,
+      "PT_total": 3,
+      "EN_raw_scores": {
+        "EMB2": 0.6995,
+        "EMB3": 0.4432,
+        "EMB4": 0.411
+      },
+      "EN_retrieved": 3,
+      "EN_total": 3
+    },
+    {
+      "pair_id": "p07_sr_pico",
+      "topic": "systematic_review",
+      "PT_raw_scores": {
+        "SR2": 0.7317
+      },
+      "PT_retrieved": 1,
+      "PT_total": 1,
+      "EN_raw_scores": {
+        "SR2": 0.8736
+      },
+      "EN_retrieved": 1,
+      "EN_total": 1
+    },
+    {
+      "pair_id": "p08_code_fail",
+      "topic": "llm_code",
+      "PT_raw_scores": {
+        "CODE3": 0.5925
+      },
+      "PT_retrieved": 1,
+      "PT_total": 1,
+      "EN_raw_scores": {
+        "CODE3": 0.689
+      },
+      "EN_retrieved": 1,
+      "EN_total": 1
+    },
+    {
+      "pair_id": "p09_lung_arch",
+      "topic": "lung_cancer",
+      "PT_raw_scores": {
+        "LUNG2": 0.486
+      },
+      "PT_retrieved": 1,
+      "PT_total": 1,
+      "EN_raw_scores": {
+        "LUNG2": 0.6437
+      },
+      "EN_retrieved": 1,
+      "EN_total": 1
+    },
+    {
+      "pair_id": "p10_rec_offline",
+      "topic": "recommendation",
+      "PT_raw_scores": {
+        "REC1": 0.5827,
+        "REC3": 0.6519
+      },
+      "PT_retrieved": 2,
+      "PT_total": 2,
+      "EN_raw_scores": {
+        "REC1": 0.6579,
+        "REC3": 0.7852
+      },
+      "EN_retrieved": 2,
+      "EN_total": 2
+    }
+  ]
+}
