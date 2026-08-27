@@ -29,11 +29,47 @@ def test_rejects_invalid_content_type() -> None:
         validator.validate(b"<html></html>", "text/html")
 
 
-def test_rejects_missing_content_type() -> None:
+def test_accepts_pdf_with_octet_stream_content_type() -> None:
+    """RDA-060: a real PDF served as application/octet-stream (or another
+    generic type) must be accepted via magic-byte sniffing."""
+    validator = FileValidator()
+
+    digest = validator.validate(PDF_BYTES, "application/octet-stream")
+
+    assert digest == hashlib.sha256(PDF_BYTES).hexdigest()
+
+
+def test_accepts_pdf_with_unknown_content_type() -> None:
+    validator = FileValidator()
+
+    digest = validator.validate(PDF_BYTES, "binary/octet-stream")
+
+    assert digest == hashlib.sha256(PDF_BYTES).hexdigest()
+
+
+def test_rejects_html_even_with_pdf_magic_absent() -> None:
+    """A non-PDF payload with a generic content type must still be rejected."""
     validator = FileValidator()
 
     with pytest.raises(InvalidFileTypeError):
-        validator.validate(PDF_BYTES, "")
+        validator.validate(b"<html>not a pdf</html>", "application/octet-stream")
+
+
+def test_rejects_missing_content_type_for_non_pdf() -> None:
+    """A non-PDF payload with no content type must be rejected (RDA-060)."""
+    validator = FileValidator()
+
+    with pytest.raises(InvalidFileTypeError):
+        validator.validate(b"<html>not a pdf</html>", "")
+
+
+def test_accepts_pdf_with_missing_content_type() -> None:
+    """A real PDF with no content type is accepted via magic-byte sniffing."""
+    validator = FileValidator()
+
+    digest = validator.validate(PDF_BYTES, "")
+
+    assert digest == hashlib.sha256(PDF_BYTES).hexdigest()
 
 
 def test_rejects_file_too_large() -> None:

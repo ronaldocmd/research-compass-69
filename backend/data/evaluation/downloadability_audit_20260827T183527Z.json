@@ -1,0 +1,64 @@
+{
+  "audit": "RDA-060 downloadability",
+  "timestamp": "2026-08-27T18:35:27.206171+00:00",
+  "commit": "8d9651c95b8cb543a7e4f6d8eaf85e14e7bb6d98",
+  "results": [
+    {
+      "url": "https://bmchealthservres.biomedcentral.com/counter/pdf/10.1186/s12913-020-05851-2.pdf",
+      "status": "success",
+      "content_type": "text/html",
+      "size": 3038
+    },
+    {
+      "url": "https://www.sciencedirect.com/science/article/pii/S0264410X15005046/pdf",
+      "status": "failed",
+      "error": "DownloadHTTPError: Download returned HTTP 403 for https://www.sciencedirect.com/science/article/pii/S0264410X15005046/pdf"
+    },
+    {
+      "url": "https://pure.manchester.ac.uk/ws/files/23765466/PRE-PEER-REVIEW.PDF",
+      "status": "success",
+      "content_type": "application/octet-stream",
+      "size": 1148559
+    },
+    {
+      "url": "https://doi.org/10.1016/j.tourman.2009.02.016",
+      "status": "success",
+      "content_type": "text/html",
+      "size": 2670
+    },
+    {
+      "url": "https://systematicreviewsjournal.biomedcentral.com/track/pdf/10.1186/s13643-020-01542-z.pdf",
+      "status": "success",
+      "content_type": "text/html",
+      "size": 3038
+    },
+    {
+      "url": "https://systematicreviewsjournal.biomedcentral.com/counter/pdf/10.1186/s13643-020-01542-z.pdf",
+      "status": "success",
+      "content_type": "text/html",
+      "size": 3038
+    },
+    {
+      "url": "https://doi.org/10.14778/1453856.1453956",
+      "status": "failed",
+      "error": "DownloadHTTPError: Download returned HTTP 403 for https://doi.org/10.14778/1453856.1453956"
+    },
+    {
+      "url": "http://www.jclinepi.com/article/S089543560800320X/pdf",
+      "status": "failed",
+      "error": "DownloadHTTPError: Download returned HTTP 403 for http://www.jclinepi.com/article/S089543560800320X/pdf"
+    },
+    {
+      "url": "https://doi.org/10.1016/j.wpi.2012.10.005",
+      "status": "success",
+      "content_type": "text/html",
+      "size": 2695
+    },
+    {
+      "url": "https://doi.org/10.1016/j.envres.2017.05.040",
+      "status": "success",
+      "content_type": "text/html",
+      "size": 2732
+    }
+  ]
+}

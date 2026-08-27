@@ -80,6 +80,16 @@ def test_save_rejects_file_too_large(storage: FileStorage) -> None:
         small_storage.save(uuid.uuid4(), b"a" * 5000, {"content_type": "application/pdf"})
 
 
-def test_save_requires_content_type_in_metadata(storage: FileStorage) -> None:
+def test_save_accepts_pdf_without_content_type_metadata(storage: FileStorage) -> None:
+    """RDA-060: a real PDF with no content-type in metadata is accepted via
+    magic-byte sniffing."""
+    document_id = uuid.uuid4()
+
+    path = storage.save(document_id, PDF_BYTES, {})
+
+    assert storage.get(document_id) == PDF_BYTES
+
+
+def test_save_rejects_non_pdf_without_content_type_metadata(storage: FileStorage) -> None:
     with pytest.raises(InvalidFileTypeError):
-        storage.save(uuid.uuid4(), PDF_BYTES, {})
+        storage.save(uuid.uuid4(), b"<html>not a pdf</html>", {})

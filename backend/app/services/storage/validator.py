@@ -16,6 +16,12 @@ from app.services.storage.exceptions import (
 
 ALLOWED_CONTENT_TYPES = {"application/pdf"}
 
+# Magic bytes used to detect the real file type when the HTTP Content-Type
+# header is unreliable (RDA-060). Many repositories serve PDFs as
+# application/octet-stream (or another generic type), which the header-based
+# check would otherwise reject even though the bytes are a valid PDF.
+_PDF_MAGIC = b"%PDF-"
+
 
 class FileValidator:
     """Validates content type, size and computes the SHA-256 hash."""
@@ -47,17 +53,23 @@ class FileValidator:
             InvalidFileTypeError: If content_type is not allowed.
             FileTooLargeError: If content exceeds the max size.
         """
-        self._validate_content_type(content_type)
+        self._validate_content_type(content, content_type)
         self._validate_size(content)
         return self.sha256(content)
 
-    def _validate_content_type(self, content_type: str) -> None:
+    def _validate_content_type(self, content: bytes, content_type: str) -> None:
         normalized = content_type.strip().lower()
-        if normalized not in self._allowed_content_types:
-            raise InvalidFileTypeError(
-                f"Content-Type {content_type!r} is not allowed; expected one of "
-                f"{sorted(self._allowed_content_types)}"
-            )
+        if normalized in self._allowed_content_types:
+            return
+        # Sniff the real type from the magic bytes: a PDF served with a
+        # generic/incorrect Content-Type (e.g. application/octet-stream) is
+        # still a valid PDF and must be accepted (RDA-060).
+        if content.startswith(_PDF_MAGIC):
+            return
+        raise InvalidFileTypeError(
+            f"Content-Type {content_type!r} is not allowed; expected one of "
+            f"{sorted(self._allowed_content_types)}"
+        )
 
     def _validate_size(self, content: bytes) -> None:
         if len(content) > self._max_size:
