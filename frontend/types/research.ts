@@ -15,6 +15,8 @@ export interface Research {
   status: ResearchStatus;
   created_at: string;
   updated_at: string;
+  /** RDA-065: the synthesis summary (plain text), when the workflow completed. */
+  summary?: string | null;
 }
 
 /** Mirrors backend ResearchCreate. */

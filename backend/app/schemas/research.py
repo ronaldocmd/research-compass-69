@@ -42,3 +42,6 @@ class ResearchResponse(BaseModel):
     status: ResearchStatus
     created_at: datetime
     updated_at: datetime
+    # RDA-065: expose the synthesis summary so the generated findings are
+    # reachable (it is persisted to research.summary but was not served).
+    summary: str | None = None
