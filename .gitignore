@@ -44,6 +44,7 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+backend/storage/
 
 # Next.js / frontend
 frontend/.next/

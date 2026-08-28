@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.config import settings
 from app.services.confidence.schemas import ConfidenceLevel
+from app.services.validation.schemas import ValidationResult, ValidationStatus
 from app.services.planning.schemas import ResearchPlanInput, TaskType
 from app.services.retrieval.retriever import cosine_similarity
 from app.services.workflow.state import (
@@ -563,6 +564,21 @@ class ResearchNodes:
                 if failed:
                     if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
                         return state
+                    # RDA-062: when the independent validator cannot run, record
+                    # a conservative UNSUPPORTED result so the claim is not
+                    # presented as a verified finding. Prefer rejecting a true
+                    # claim over accepting an unverifiable one.
+                    validation_results.append(
+                        ValidationResult(
+                            validation_id=uuid.uuid4(),
+                            claim_id=claim.claim_id,
+                            evidence_id=evidence.evidence_id,
+                            status=ValidationStatus.UNSUPPORTED,
+                            reasoning="Validation could not be completed; treated as unsupported.",
+                            validated_at=datetime.now(UTC),
+                            model_used="unavailable",
+                        )
+                    )
                     continue
                 validation_results.append(result)
 
@@ -664,16 +680,34 @@ class ResearchNodes:
 
         Claims without a scored confidence are treated as unsupported and
         excluded. The threshold comes from SYNTHESIS_MIN_CONFIDENCE.
+
+        RDA-062: a claim is only presented as a finding when at least one of
+        its evidence items was independently validated as SUPPORTED. The
+        confidence score alone is not enough: it is derived from the
+        extractor's status and retrieval similarity, which can mark a merely
+        plausible or fabricated passage as supported. The independent
+        validation (RDA-028) is the gate that keeps unsupported statements out
+        of the summary. Claims with no SUPPORTED validation are excluded even
+        if their confidence is HIGH.
         """
         try:
             min_level = ConfidenceLevel(settings.SYNTHESIS_MIN_CONFIDENCE)
         except ValueError:
             min_level = ConfidenceLevel.MEDIUM
         by_id = {sc.claim.claim_id: sc.confidence for sc in state.scored_claims}
+        validated_supported = {
+            result.claim_id
+            for result in state.validation_results
+            if result.status == ValidationStatus.SUPPORTED
+        }
         out = []
         for claim in state.claims:
             confidence = by_id.get(claim.claim_id)
-            if confidence is not None and self._level_rank(confidence.level) >= self._level_rank(min_level):
+            if confidence is None:
+                continue
+            if claim.claim_id not in validated_supported:
+                continue
+            if self._level_rank(confidence.level) >= self._level_rank(min_level):
                 out.append((claim, confidence.level))
         return out
 
@@ -684,6 +718,11 @@ class ResearchNodes:
         return (
             "Summarize the research findings from these claims.\n"
             f"Claims:\n{body}\n"
+            "Each claim is tagged with its confidence level. Preserve the "
+            "confidence qualification: do not present MEDIUM-confidence claims "
+            "as established facts. If two claims conflict, report the conflict "
+            "explicitly instead of choosing one side. Do not add facts that are "
+            "not present in the claims.\n"
             "Return a JSON object with a 'summary' field."
         )
 

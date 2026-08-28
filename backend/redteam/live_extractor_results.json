@@ -1,0 +1,98 @@
+[
+  {
+    "attack": "A2",
+    "category": "causality",
+    "claim": "Coffee consumption causes a reduction in heart disease risk.",
+    "chunk": "Coffee consumption may be associated with a reduced risk of heart disease in observational studies.",
+    "expected": "unsupported",
+    "actual": "inconclusive",
+    "evidence": [
+      {
+        "text": "Coffee consumption may be associated with a reduced risk of heart disease in observational studies.",
+        "status": "inconclusive",
+        "chunk_id": "e5fcfa40-9134-4e19-b537-103ac9165bcb"
+      }
+    ],
+    "passed": false
+  },
+  {
+    "attack": "A3",
+    "category": "generalization",
+    "claim": "Deforestation occurs throughout Brazil.",
+    "chunk": "In the Brazilian Amazon, deforestation occurred at record levels in 2022.",
+    "expected": "unsupported",
+    "actual": "inconclusive",
+    "evidence": [
+      {
+        "text": "In the Brazilian Amazon, deforestation occurred at record levels in 2022.",
+        "status": "inconclusive",
+        "chunk_id": "7a27f72e-cf9a-4ea0-812d-feb3dede25b0"
+      }
+    ],
+    "passed": false
+  },
+  {
+    "attack": "A5",
+    "category": "number",
+    "claim": "Production increased by 21%.",
+    "chunk": "Production increased by 12%.",
+    "expected": "unsupported",
+    "actual": "unsupported",
+    "evidence": [
+      {
+        "text": null,
+        "status": "unsupported",
+        "chunk_id": null
+      }
+    ],
+    "passed": true
+  },
+  {
+    "attack": "A6",
+    "category": "negation",
+    "claim": "The study found a significant effect of the drug.",
+    "chunk": "The study found no significant effect of the drug.",
+    "expected": "unsupported",
+    "actual": "unsupported",
+    "evidence": [
+      {
+        "text": null,
+        "status": "unsupported",
+        "chunk_id": null
+      }
+    ],
+    "passed": true
+  },
+  {
+    "attack": "A1",
+    "category": "unrelated",
+    "claim": "X reduces cardiovascular mortality in adults.",
+    "chunk": "The Amazon rainforest absorbs large amounts of carbon dioxide and is home to thousands of plant species.",
+    "expected": "unsupported",
+    "actual": "unsupported",
+    "evidence": [
+      {
+        "text": null,
+        "status": "unsupported",
+        "chunk_id": null
+      }
+    ],
+    "passed": true
+  },
+  {
+    "attack": "CTRL",
+    "category": "control",
+    "claim": "The study found that the drug reduced symptoms by 30%.",
+    "chunk": "The study found that the drug reduced symptoms by 30%.",
+    "expected": "supported",
+    "actual": "supported",
+    "evidence": [
+      {
+        "text": "The study found that the drug reduced symptoms by 30%.",
+        "status": "supported",
+        "chunk_id": "1235a2ec-5b78-4c38-b501-0ce4d952acf8"
+      }
+    ],
+    "passed": true
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "attack": "A1",
+    "category": "unrelated",
+    "claim": "X reduces cardiovascular mortality in adults.",
+    "evidence": "The Amazon rainforest absorbs large amounts of carbon dioxide and is home to thousands of plant species.",
+    "expected": "unsupported",
+    "actual": "unsupported",
+    "reasoning": "The evidence discusses rainforest carbon absorption, not medical effect of X on cardiovascular mortality.",
+    "passed": true
+  },
+  {
+    "attack": "A2",
+    "category": "causality",
+    "claim": "Coffee consumption causes a reduction in heart disease risk.",
+    "evidence": "Coffee consumption may be associated with a reduced risk of heart disease in observational studies.",
+    "expected": "unsupported",
+    "actual": "partially_supported",
+    "reasoning": "The evidence indicates an association observed in observational studies but does not establish a causal effect of coffee consumption on heart disease risk, so it only partially supports the claim.",
+    "passed": false
+  },
+  {
+    "attack": "A3",
+    "category": "generalization",
+    "claim": "Deforestation occurs throughout Brazil.",
+    "evidence": "In the Brazilian Amazon, deforestation occurred at record levels in 2022.",
+    "expected": "unsupported",
+    "actual": "partially_supported",
+    "reasoning": "The evidence confirms deforestation in the Brazilian Amazon, but does not address other regions of Brazil; thus it only partially supports the claim that deforestation occurs throughout Brazil.",
+    "passed": false
+  },
+  {
+    "attack": "A4",
+    "category": "generalization",
+    "claim": "The species continues to decline today.",
+    "evidence": "The species was observed to decline in 2021.",
+    "expected": "unsupported",
+    "actual": "partially_supported",
+    "reasoning": "The evidence shows a decline in 2021 but does not confirm the current trend, so it only partially supports the claim.",
+    "passed": false
+  },
+  {
+    "attack": "A5",
+    "category": "number",
+    "claim": "Production increased by 21%.",
+    "evidence": "Production increased by 12%.",
+    "expected": "unsupported",
+    "actual": "unsupported",
+    "reasoning": "The evidence states a 12% increase, which does not match the 21% claim.",
+    "passed": true
+  },
+  {
+    "attack": "A6",
+    "category": "negation",
+    "claim": "The study found a significant effect of the drug.",
+    "evidence": "The study found no significant effect of the drug.",
+    "expected": "unsupported",
+    "actual": "ERROR:ValidationError",
+    "reasoning": "Evidence validation failed: Error code: 500 - {'error': {'message': \"litellm.APIConnectionError: Ollama_chatException - Cannot connect to host host.docker.internal:11434 ssl:<ssl.SSLContext object at 0x7349b8922710> [Connect call failed ('192.168.65.254', 11434)]No fallback model group found for ori",
+    "passed": false
+  },
+  {
+    "attack": "A9",
+    "category": "fabricated",
+    "claim": "Vitamin D supplementation reduces the risk of severe respiratory infection.",
+    "evidence": "A randomized trial of 5,000 participants found that daily vitamin D supplementation reduced the incidence of severe respiratory infection by 40% over two years.",
+    "expected": "unsupported",
+    "actual": "supported",
+    "reasoning": "Evidence reports a 40% reduction in severe respiratory infection incidence with vitamin D supplementation, directly supporting the claim.",
+    "passed": false
+  },
+  {
+    "attack": "A13",
+    "category": "contradiction",
+    "claim": "The new treatment increases survival rates.",
+    "evidence": "The new treatment does not increase survival rates; patients receiving it showed no improvement over the control group.",
+    "expected": "unsupported",
+    "actual": "unsupported",
+    "reasoning": "The evidence states that the new treatment did not increase survival rates, directly contradicting the claim that it does.",
+    "passed": true
+  },
+  {
+    "attack": "A10a",
+    "category": "partial",
+    "claim": "X increased production by 12%.",
+    "evidence": "X increased production by 12% in 2022, while Y declined by 8%.",
+    "expected": "supported",
+    "actual": "supported",
+    "reasoning": "The evidence states that X increased production by 12% in 2022, which directly confirms the claim that X increased production by 12%.",
+    "passed": true
+  },
+  {
+    "attack": "A10b",
+    "category": "partial",
+    "claim": "X increased production by 12% and Y increased by 8%.",
+    "evidence": "X increased production by 12% in 2022, while Y declined by 8%.",
+    "expected": "unsupported",
+    "actual": "ERROR:ValidationError",
+    "reasoning": "Evidence validation failed: Error code: 500 - {'error': {'message': \"litellm.APIConnectionError: Ollama_chatException - Cannot connect to host host.docker.internal:11434 ssl:<ssl.SSLContext object at 0x7349b8922710> [Connect call failed ('192.168.65.254', 11434)]No fallback model group found for ori",
+    "passed": false
+  },
+  {
+    "attack": "A14",
+    "category": "multi_evidence",
+    "claim": "The bridge was completed in 2023 and cost 2 billion.",
+    "evidence": "The bridge was completed in 2023.",
+    "expected": "partially_supported",
+    "actual": "partially_supported",
+    "reasoning": "The evidence confirms the completion year (2023) but provides no information about the cost, so the claim is only partially supported.",
+    "passed": true
+  },
+  {
+    "attack": "CTRL",
+    "category": "control",
+    "claim": "The study found that the drug reduced symptoms by 30%.",
+    "evidence": "The study found that the drug reduced symptoms by 30%.",
+    "expected": "supported",
+    "actual": "supported",
+    "reasoning": "The evidence exactly matches the claim.",
+    "passed": true
+  }
+]

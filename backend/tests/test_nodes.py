@@ -543,6 +543,34 @@ def test_validation_node_persists_state() -> None:
 
     assert len(persisted) == 1
     assert persisted[0].scored_claims[0].claim.claim_id == state.claims[0].claim_id
+
+
+class _FailingValidator:
+    def validate(self, claim, evidence):
+        raise RuntimeError("validator unavailable")
+
+
+def test_validation_node_records_unsupported_on_validator_failure() -> None:
+    """RDA-062: when the independent validator cannot run, the validation node
+    records a conservative UNSUPPORTED result so the claim is not presented as
+    a verified finding."""
+    nodes = ResearchNodes(
+        validator=_FailingValidator(),
+        provenance_resolver=_FakeProvenanceResolver(),
+        confidence_scorer=_FakeConfidenceScorer(),
+        document_resolver=lambda doc_id, chunk: DocumentSource(
+            document_id=doc_id, title="Doc", url="https://x", doi="10.1/x",
+            page_number=chunk.page_number, chunk_id=chunk.chunk_id,
+        ),
+    )
+    state = _validation_state()
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(state.validation_results) == 1
+    assert state.validation_results[0].status == ValidationStatus.UNSUPPORTED
+    assert state.validation_results[0].claim_id == state.claims[0].claim_id
+    assert state.current_stage == WorkflowStage.SYNTHESIZING
     assert state.current_stage == WorkflowStage.SYNTHESIZING
 
 
@@ -573,7 +601,20 @@ def test_synthesis_node_transitions_to_completed() -> None:
         scored_at=datetime.now(UTC),
     )
 
-    state = _run(nodes.synthesis_node, _initial(claims=[claim], scored_claims=[scored]))
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[scored],
+            validation_results=[
+                ValidationResult(
+                    validation_id=uuid.uuid4(), claim_id=claim.claim_id,
+                    evidence_id=uuid.uuid4(), status=ValidationStatus.SUPPORTED,
+                    reasoning="ok", validated_at=datetime.now(UTC), model_used="fake",
+                )
+            ],
+        ),
+    )
 
     assert state.current_stage == WorkflowStage.COMPLETED
     assert state.budget.llm_calls == 1
@@ -609,7 +650,22 @@ def test_synthesis_node_filters_low_confidence_claims() -> None:
 
     state = _run(
         nodes.synthesis_node,
-        _initial(claims=[high_claim, low_claim], scored_claims=scored),
+        _initial(
+            claims=[high_claim, low_claim],
+            scored_claims=scored,
+            validation_results=[
+                ValidationResult(
+                    validation_id=uuid.uuid4(), claim_id=high_claim.claim_id,
+                    evidence_id=uuid.uuid4(), status=ValidationStatus.SUPPORTED,
+                    reasoning="ok", validated_at=datetime.now(UTC), model_used="fake",
+                ),
+                ValidationResult(
+                    validation_id=uuid.uuid4(), claim_id=low_claim.claim_id,
+                    evidence_id=uuid.uuid4(), status=ValidationStatus.UNSUPPORTED,
+                    reasoning="no", validated_at=datetime.now(UTC), model_used="fake",
+                ),
+            ],
+        ),
     )
 
     assert state.current_stage == WorkflowStage.COMPLETED
@@ -659,3 +715,241 @@ def test_synthesis_node_skips_when_no_claims() -> None:
     assert saved == []
     assert state.completed_at is not None
     assert any("Synthesis skipped" in e.message for e in state.errors)
+
+
+
+# --- RDA-062: validation gate on synthesis -----------------------------------
+
+
+def _supported_validation(claim_id) -> ValidationResult:
+    return ValidationResult(
+        validation_id=uuid.uuid4(), claim_id=claim_id, evidence_id=uuid.uuid4(),
+        status=ValidationStatus.SUPPORTED, reasoning="ok",
+        validated_at=datetime.now(UTC), model_used="fake",
+    )
+
+
+def _unsupported_validation(claim_id) -> ValidationResult:
+    return ValidationResult(
+        validation_id=uuid.uuid4(), claim_id=claim_id, evidence_id=uuid.uuid4(),
+        status=ValidationStatus.UNSUPPORTED, reasoning="no",
+        validated_at=datetime.now(UTC), model_used="fake",
+    )
+
+
+def test_synthesis_excludes_high_confidence_without_supported_validation() -> None:
+    """RDA-062: a HIGH-confidence claim with no SUPPORTED validation must not
+    reach the summary. Confidence alone (extractor status + retrieval) is not
+    enough to present a claim as a verified finding."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    scored = ScoredClaim(
+        claim=claim, evidence=[],
+        confidence=ConfidenceScore(
+            level=ConfidenceLevel.HIGH, score=0.9, reasoning="ok", factors={}
+        ),
+        scored_at=datetime.now(UTC),
+    )
+
+    state = _run(
+        nodes.synthesis_node,
+        _initial(claims=[claim], scored_claims=[scored]),
+    )
+
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.synthesis_stats["included"] == 0
+
+
+def test_synthesis_excludes_high_confidence_with_unsupported_validation() -> None:
+    """RDA-062: a HIGH-confidence claim whose independent validation is
+    UNSUPPORTED must be excluded from the summary."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    scored = ScoredClaim(
+        claim=claim, evidence=[],
+        confidence=ConfidenceScore(
+            level=ConfidenceLevel.HIGH, score=0.9, reasoning="ok", factors={}
+        ),
+        scored_at=datetime.now(UTC),
+    )
+
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[scored],
+            validation_results=[_unsupported_validation(claim.claim_id)],
+        ),
+    )
+
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.synthesis_stats["included"] == 0
+
+
+def test_synthesis_includes_medium_confidence_with_supported_validation() -> None:
+    """RDA-062: a MEDIUM-confidence claim with a SUPPORTED validation is
+    included (MEDIUM is the SYNTHESIS_MIN_CONFIDENCE threshold)."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    scored = ScoredClaim(
+        claim=claim, evidence=[],
+        confidence=ConfidenceScore(
+            level=ConfidenceLevel.MEDIUM, score=0.6, reasoning="ok", factors={}
+        ),
+        scored_at=datetime.now(UTC),
+    )
+
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[scored],
+            validation_results=[_supported_validation(claim.claim_id)],
+        ),
+    )
+
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 1
+    assert saved == ["A summary"]
+    assert state.synthesis_stats["included"] == 1
+
+
+
+# --- RDA-062 Phase 28: quality gates -----------------------------------------
+
+
+def _scored(claim, level, score) -> ScoredClaim:
+    return ScoredClaim(
+        claim=claim, evidence=[],
+        confidence=ConfidenceScore(
+            level=level, score=score, reasoning="ok", factors={}
+        ),
+        scored_at=datetime.now(UTC),
+    )
+
+
+def test_quality_gate_case1_no_supported_claims_no_summary() -> None:
+    """Case 1: 0 supported claims -> no factual summary is produced."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[_scored(claim, ConfidenceLevel.LOW, 0.1)],
+            validation_results=[_unsupported_validation(claim.claim_id)],
+        ),
+    )
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.synthesis_stats["included"] == 0
+
+
+def test_quality_gate_case2_only_low_claims_no_summary() -> None:
+    """Case 2: only LOW-confidence claims -> no normal factual summary."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[_scored(claim, ConfidenceLevel.LOW, 0.2)],
+            validation_results=[_supported_validation(claim.claim_id)],
+        ),
+    )
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.synthesis_stats["included"] == 0
+
+
+def test_quality_gate_case3_contradicted_claim_excluded() -> None:
+    """Case 3: a contradicted claim (UNSUPPORTED validation) is excluded from
+    the summary even when it has HIGH confidence; the supported claim is kept."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    supported_claim = _claim().model_copy(update={"text": "supported finding"})
+    contradicted_claim = _claim().model_copy(update={"text": "contradicted finding"})
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[supported_claim, contradicted_claim],
+            scored_claims=[
+                _scored(supported_claim, ConfidenceLevel.HIGH, 0.9),
+                _scored(contradicted_claim, ConfidenceLevel.HIGH, 0.9),
+            ],
+            validation_results=[
+                _supported_validation(supported_claim.claim_id),
+                _unsupported_validation(contradicted_claim.claim_id),
+            ],
+        ),
+    )
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.synthesis_stats["included"] == 1
+    assert supported_claim.text in llm.prompts[0]
+    assert contradicted_claim.text not in llm.prompts[0]
+
+
+def test_quality_gate_case4_partially_supported_excluded() -> None:
+    """Case 4: a partially-supported claim (PARTIALLY_SUPPORTED validation) is
+    not presented as a verified finding; only SUPPORTED claims reach summary."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[_scored(claim, ConfidenceLevel.MEDIUM, 0.6)],
+            validation_results=[
+                ValidationResult(
+                    validation_id=uuid.uuid4(), claim_id=claim.claim_id,
+                    evidence_id=uuid.uuid4(),
+                    status=ValidationStatus.PARTIALLY_SUPPORTED,
+                    reasoning="partial", validated_at=datetime.now(UTC),
+                    model_used="fake",
+                )
+            ],
+        ),
+    )
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 0
+    assert saved == []
+    assert state.synthesis_stats["included"] == 0
+
+
+def test_quality_gate_case5_strongly_supported_summary_allowed() -> None:
+    """Case 5: strongly supported claims -> summary is produced."""
+    llm = _FakeLLM("A summary")
+    saved: list = []
+    nodes = ResearchNodes(llm=llm, summary_saver=lambda rid, summary: saved.append(summary))
+    claim = _claim()
+    state = _run(
+        nodes.synthesis_node,
+        _initial(
+            claims=[claim],
+            scored_claims=[_scored(claim, ConfidenceLevel.HIGH, 0.9)],
+            validation_results=[_supported_validation(claim.claim_id)],
+        ),
+    )
+    assert state.current_stage == WorkflowStage.COMPLETED
+    assert state.budget.llm_calls == 1
+    assert saved == ["A summary"]
+    assert state.synthesis_stats["included"] == 1
