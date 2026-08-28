@@ -22,6 +22,7 @@ from sqlalchemy.types import JSON
 from app.db.base import Base
 from app.services.confidence.schemas import ConfidenceLevel
 from app.services.evidence.schemas import EvidenceStatus
+from app.services.grounding.schemas import GroundingStatus
 from app.services.validation.schemas import ValidationStatus
 
 # JSONB on PostgreSQL, plain JSON elsewhere (e.g. SQLite in tests). Same
@@ -194,6 +195,56 @@ class ConfidenceRecord(Base):
     reasoning: Mapped[str] = mapped_column(Text, nullable=False)
     factors: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class GroundingRecord(Base):
+    """Deterministic grounding outcome for one claim/evidence pair (RDA-063)."""
+
+    __tablename__ = "groundings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    grounding_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), nullable=False, unique=True, index=True
+    )
+    research_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("researches.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("claims.claim_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evidence_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("evidence.evidence_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[GroundingStatus] = mapped_column(
+        Enum(
+            GroundingStatus,
+            name="grounding_status",
+            native_enum=True,
+            validate_strings=True,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        nullable=False,
+    )
+    evidence_grounded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    number_mismatches: Mapped[list[dict]] = mapped_column(
+        JSONType, nullable=False, default=list
+    )
+    negation_flipped: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    grounded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

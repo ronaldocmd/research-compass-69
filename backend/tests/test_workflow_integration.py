@@ -271,7 +271,7 @@ class FakeProvenanceResolver:
 
 
 class FakeConfidenceScorer:
-    def score_claim(self, claim, evidence, retrieval_scores=None):
+    def score_claim(self, claim, evidence, retrieval_scores=None, grounding_results=None):
         from app.services.confidence.schemas import ConfidenceLevel, ConfidenceScore, ScoredClaim
 
         return ScoredClaim(
@@ -402,6 +402,7 @@ def test_run_persists_documents_chunks_and_summary(client: TestClient) -> None:
             ClaimRecord,
             ConfidenceRecord,
             EvidenceRecord,
+            GroundingRecord,
             ProvenanceRecord,
             ValidationRecord,
         )
@@ -411,6 +412,10 @@ def test_run_persists_documents_chunks_and_summary(client: TestClient) -> None:
         assert len(db.execute(select(ValidationRecord)).scalars().all()) == 1
         assert len(db.execute(select(ProvenanceRecord)).scalars().all()) == 1
         assert len(db.execute(select(ConfidenceRecord)).scalars().all()) == 1
+        # RDA-063: the deterministic grounding outcome is persisted too.
+        groundings = db.execute(select(GroundingRecord)).scalars().all()
+        assert len(groundings) == 1
+        assert groundings[0].status.value == "grounded"
 
         # The evidence chain is recoverable via the API after the run.
         chain_resp = client.get(f"{BASE}/{research_id}/evidence")
@@ -421,6 +426,8 @@ def test_run_persists_documents_chunks_and_summary(client: TestClient) -> None:
         assert len(chain["validations"]) == 1
         assert len(chain["provenance"]) == 1
         assert len(chain["confidence"]) == 1
+        assert len(chain["groundings"]) == 1
+        assert chain["groundings"][0]["status"] == "grounded"
         assert chain["confidence"][0]["level"] == "HIGH"
     finally:
         gen.close()

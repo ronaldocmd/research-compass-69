@@ -18,6 +18,7 @@ from app.schemas.search import NormalizedSearchResult
 from app.services.claims.schemas import Claim
 from app.services.confidence.schemas import ScoredClaim
 from app.services.evidence.schemas import Evidence
+from app.services.grounding.schemas import GroundingResult
 from app.services.planning.schemas import PlanTask
 from app.services.provenance.schemas import ProvenanceChain
 from app.services.retrieval.schemas import RetrievedChunk
@@ -132,6 +133,8 @@ class ResearchWorkflowState(BaseModel):
     validation_results: list[ValidationResult] = Field(default_factory=list)
     provenance_chains: list[ProvenanceChain] = Field(default_factory=list)
     scored_claims: list[ScoredClaim] = Field(default_factory=list)
+    # Deterministic grounding outcomes (RDA-063), one per claim/evidence pair.
+    grounding_results: list[GroundingResult] = Field(default_factory=list)
     # Observability of the synthesis filter (RDA-061): how many claims were
     # considered and how many were excluded for low confidence.
     synthesis_stats: dict[str, int] = Field(default_factory=dict)

@@ -15,6 +15,7 @@ from app.models.evidence_chain import (
     ClaimRecord,
     ConfidenceRecord,
     EvidenceRecord,
+    GroundingRecord,
     ProvenanceRecord,
     ValidationRecord,
 )
@@ -65,6 +66,13 @@ class EvidenceChainRepository:
             self.db.scalars(
                 select(ConfidenceRecord.confidence_id).where(
                     ConfidenceRecord.research_id == state.research_id
+                )
+            )
+        )
+        existing_groundings = set(
+            self.db.scalars(
+                select(GroundingRecord.grounding_id).where(
+                    GroundingRecord.research_id == state.research_id
                 )
             )
         )
@@ -148,6 +156,27 @@ class EvidenceChainRepository:
                 )
             )
 
+        for grounding in state.grounding_results:
+            if grounding.grounding_id in existing_groundings:
+                continue
+            self.db.add(
+                GroundingRecord(
+                    grounding_id=grounding.grounding_id,
+                    research_id=state.research_id,
+                    claim_id=grounding.claim_id,
+                    evidence_id=grounding.evidence_id,
+                    status=grounding.status,
+                    evidence_grounded=grounding.evidence_grounded,
+                    number_mismatches=[
+                        m.model_dump() for m in grounding.number_mismatches
+                    ],
+                    negation_flipped=grounding.negation_flipped,
+                    content_hash=grounding.content_hash,
+                    reason=grounding.reason,
+                    grounded_at=grounding.grounded_at,
+                )
+            )
+
         self.db.commit()
 
     def get_claims_by_research(self, research_id: uuid.UUID) -> list[ClaimRecord]:
@@ -192,5 +221,14 @@ class EvidenceChainRepository:
                 select(ConfidenceRecord)
                 .where(ConfidenceRecord.research_id == research_id)
                 .order_by(ConfidenceRecord.created_at.asc())
+            )
+        )
+
+    def get_groundings_by_research(self, research_id: uuid.UUID) -> list[GroundingRecord]:
+        return list(
+            self.db.scalars(
+                select(GroundingRecord)
+                .where(GroundingRecord.research_id == research_id)
+                .order_by(GroundingRecord.created_at.asc())
             )
         )

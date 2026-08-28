@@ -1,0 +1,409 @@
+{
+  "version": "rda063-v1",
+  "cases": [
+    {
+      "id": "G01",
+      "category": "supported",
+      "claim": "The study found that the drug reduced symptoms by 30%.",
+      "expected": "grounded",
+      "actual": "grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "G02",
+      "category": "supported",
+      "claim": "X increased production by 12% in 2022.",
+      "expected": "grounded",
+      "actual": "grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "G03",
+      "category": "supported",
+      "claim": "The bridge was completed in 2023.",
+      "expected": "grounded",
+      "actual": "grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "G04",
+      "category": "supported",
+      "claim": "The species was observed to decline in 2021.",
+      "expected": "grounded",
+      "actual": "grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "G05",
+      "category": "supported",
+      "claim": "Deforestation occurred at record levels in the Brazilian Amazon in 2022.",
+      "expected": "grounded",
+      "actual": "grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "N01",
+      "category": "number",
+      "claim": "Production increased by 21%.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [
+        "21%"
+      ],
+      "correct": true
+    },
+    {
+      "id": "N02",
+      "category": "number",
+      "claim": "The trial enrolled 500 patients.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [
+        "500"
+      ],
+      "correct": true
+    },
+    {
+      "id": "N03",
+      "category": "number",
+      "claim": "Costs rose by 40%.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [
+        "40%"
+      ],
+      "correct": true
+    },
+    {
+      "id": "N04",
+      "category": "number",
+      "claim": "The drug reduced mortality by 25%.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [
+        "25%"
+      ],
+      "correct": true
+    },
+    {
+      "id": "N05",
+      "category": "number",
+      "claim": "The population reached 10 million.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [
+        "10million"
+      ],
+      "correct": true
+    },
+    {
+      "id": "NG01",
+      "category": "negation",
+      "claim": "The study found a significant effect of the drug.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": true,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "NG02",
+      "category": "negation",
+      "claim": "The treatment is safe for all patients.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": true,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "NG03",
+      "category": "negation",
+      "claim": "The company reported a profit.",
+      "expected": "partially_grounded",
+      "actual": "grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": false
+    },
+    {
+      "id": "NG04",
+      "category": "negation",
+      "claim": "The policy increased employment.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": true,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "NG05",
+      "category": "negation",
+      "claim": "The species is thriving.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": true,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "F01",
+      "category": "fabricated",
+      "claim": "Vitamin D supplementation reduces the risk of severe respiratory infection.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "F02",
+      "category": "fabricated",
+      "claim": "The new battery lasts 10 years.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "F03",
+      "category": "fabricated",
+      "claim": "The drug cures the disease in 90% of patients.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "F04",
+      "category": "fabricated",
+      "claim": "The bridge cost exactly 2 billion.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "F05",
+      "category": "fabricated",
+      "claim": "The policy reduced emissions by 50%.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "W01",
+      "category": "wrong_chunk",
+      "claim": "The study found the drug reduced symptoms by 30%.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "W02",
+      "category": "wrong_chunk",
+      "claim": "X increased production by 12%.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "W03",
+      "category": "wrong_chunk",
+      "claim": "The bridge was completed in 2023.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "W04",
+      "category": "wrong_chunk",
+      "claim": "The species declined in 2021.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "W05",
+      "category": "wrong_chunk",
+      "claim": "Deforestation rose in 2022.",
+      "expected": "ungrounded",
+      "actual": "ungrounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "P01",
+      "category": "partial",
+      "claim": "X increased by 12% in 2022 and caused Y to increase.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "P02",
+      "category": "partial",
+      "claim": "The drug reduced symptoms by 30% and had no side effects.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "P03",
+      "category": "partial",
+      "claim": "The bridge was completed in 2023 and cost 2 billion.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [
+        "2billion"
+      ],
+      "correct": true
+    },
+    {
+      "id": "P04",
+      "category": "partial",
+      "claim": "The species declined in 2021 and is now endangered.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "P05",
+      "category": "partial",
+      "claim": "Deforestation rose in 2022 and threatens biodiversity.",
+      "expected": "partially_grounded",
+      "actual": "partially_grounded",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "U01",
+      "category": "unverifiable",
+      "claim": "X reduces cardiovascular mortality.",
+      "expected": "unverifiable",
+      "actual": "unverifiable",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "U02",
+      "category": "unverifiable",
+      "claim": "The new drug cures diabetes.",
+      "expected": "unverifiable",
+      "actual": "unverifiable",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "U03",
+      "category": "unverifiable",
+      "claim": "Solar panels are the cheapest energy source.",
+      "expected": "unverifiable",
+      "actual": "unverifiable",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "U04",
+      "category": "unverifiable",
+      "claim": "The vaccine prevents all viral infections.",
+      "expected": "unverifiable",
+      "actual": "unverifiable",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    },
+    {
+      "id": "U05",
+      "category": "unverifiable",
+      "claim": "Exercise eliminates the risk of heart disease.",
+      "expected": "unverifiable",
+      "actual": "unverifiable",
+      "negation_flipped": false,
+      "number_mismatches": [],
+      "correct": true
+    }
+  ],
+  "metrics": {
+    "total": 35,
+    "correct": 34,
+    "accuracy": 0.9714,
+    "by_category": {
+      "supported": {
+        "total": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      },
+      "number": {
+        "total": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      },
+      "negation": {
+        "total": 5,
+        "correct": 4,
+        "accuracy": 0.8
+      },
+      "fabricated": {
+        "total": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      },
+      "wrong_chunk": {
+        "total": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      },
+      "partial": {
+        "total": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      },
+      "unverifiable": {
+        "total": 5,
+        "correct": 5,
+        "accuracy": 1.0
+      }
+    }
+  }
+}

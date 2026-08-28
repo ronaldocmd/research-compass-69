@@ -10,6 +10,7 @@ from app.services.claims.schemas import Claim
 from app.services.confidence.scorer import ConfidenceScorer
 from app.services.confidence.schemas import ConfidenceLevel, ConfidenceScore, ScoredClaim
 from app.services.evidence.schemas import Evidence, EvidenceStatus
+from app.services.grounding.schemas import GroundingStatus
 
 
 def _claim(*, chunk_ids=None) -> Claim:
@@ -180,3 +181,92 @@ def test_score_claim_returns_scored_claim() -> None:
     assert scored.evidence == evidence
     assert isinstance(scored.confidence, ConfidenceScore)
     assert scored.scored_at is not None
+
+
+
+# --- RDA-063: grounding gate in the confidence scorer ------------------------
+
+
+def _grounding(status, *, negation_flipped=False):
+    from app.services.grounding.schemas import GroundingResult, GroundingStatus
+
+    return GroundingResult(
+        claim_id=uuid.uuid4(),
+        evidence_id=uuid.uuid4(),
+        status=status,
+        evidence_grounded=status == GroundingStatus.GROUNDED,
+        negation_flipped=negation_flipped,
+        reason="test",
+    )
+
+
+def test_ungrounded_evidence_caps_confidence_to_low() -> None:
+    """RDA-063: an UNGROUNDED evidence cannot yield HIGH confidence even with
+    high retrieval and a SUPPORTED extractor status."""
+    chunk_id = uuid.uuid4()
+    claim = _claim(chunk_ids=[chunk_id])
+    evidence = [_evidence(status=EvidenceStatus.SUPPORTED, chunk_id=chunk_id)]
+    grounding = [_grounding(GroundingStatus.UNGROUNDED)]
+
+    result = ConfidenceScorer().score(
+        claim, evidence, retrieval_scores={chunk_id: 0.9}, grounding_results=grounding
+    )
+
+    assert result.level == ConfidenceLevel.LOW
+    assert result.factors.get("grounding") == "UNGROUNDED"
+
+
+def test_partially_grounded_caps_confidence_to_medium() -> None:
+    """RDA-063: a PARTIALLY_GROUNDED evidence caps confidence at MEDIUM."""
+    chunk_id = uuid.uuid4()
+    claim = _claim(chunk_ids=[chunk_id])
+    evidence = [_evidence(status=EvidenceStatus.SUPPORTED, chunk_id=chunk_id)]
+    grounding = [_grounding(GroundingStatus.PARTIALLY_GROUNDED)]
+
+    result = ConfidenceScorer().score(
+        claim, evidence, retrieval_scores={chunk_id: 0.9}, grounding_results=grounding
+    )
+
+    assert result.level == ConfidenceLevel.MEDIUM
+
+
+def test_unverifiable_caps_confidence_to_medium() -> None:
+    """RDA-063: an UNVERIFIABLE evidence (no chunk) caps confidence at MEDIUM."""
+    chunk_id = uuid.uuid4()
+    claim = _claim(chunk_ids=[chunk_id])
+    evidence = [_evidence(status=EvidenceStatus.SUPPORTED, chunk_id=chunk_id)]
+    grounding = [_grounding(GroundingStatus.UNVERIFIABLE)]
+
+    result = ConfidenceScorer().score(
+        claim, evidence, retrieval_scores={chunk_id: 0.9}, grounding_results=grounding
+    )
+
+    assert result.level == ConfidenceLevel.MEDIUM
+
+
+def test_grounded_evidence_keeps_high_confidence() -> None:
+    """RDA-063: a GROUNDED evidence with high retrieval keeps HIGH confidence."""
+    chunk_id = uuid.uuid4()
+    claim = _claim(chunk_ids=[chunk_id])
+    evidence = [_evidence(status=EvidenceStatus.SUPPORTED, chunk_id=chunk_id)]
+    grounding = [_grounding(GroundingStatus.GROUNDED)]
+
+    result = ConfidenceScorer().score(
+        claim, evidence, retrieval_scores={chunk_id: 0.9}, grounding_results=grounding
+    )
+
+    assert result.level == ConfidenceLevel.HIGH
+    assert result.factors.get("grounding") == "GROUNDED"
+
+
+def test_grounding_results_are_optional_backwards_compatible() -> None:
+    """RDA-063: without grounding results the scorer behaves as before."""
+    chunk_id = uuid.uuid4()
+    claim = _claim(chunk_ids=[chunk_id])
+    evidence = [_evidence(status=EvidenceStatus.SUPPORTED, chunk_id=chunk_id)]
+
+    result = ConfidenceScorer().score(
+        claim, evidence, retrieval_scores={chunk_id: 0.9}
+    )
+
+    assert result.level == ConfidenceLevel.HIGH

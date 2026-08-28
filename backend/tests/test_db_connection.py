@@ -46,6 +46,7 @@ def test_declarative_base_metadata_is_available() -> None:
         "validations",
         "provenance",
         "confidence",
+        "groundings",
     }
 
 

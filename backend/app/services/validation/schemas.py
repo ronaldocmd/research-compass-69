@@ -13,6 +13,7 @@ class ValidationStatus(str, Enum):
     SUPPORTED = "supported"
     PARTIALLY_SUPPORTED = "partially_supported"
     UNSUPPORTED = "unsupported"
+    CONTRADICTED = "contradicted"
 
 
 class ValidationDraft(BaseModel):

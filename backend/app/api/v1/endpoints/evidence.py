@@ -12,6 +12,7 @@ from app.schemas.evidence import (
     ConfidenceResponse,
     EvidenceChainResponse,
     EvidenceResponse,
+    GroundingResponse,
     ProvenanceResponse,
     ValidationResponse,
 )
@@ -53,5 +54,8 @@ def get_evidence_chain(
         ],
         confidence=[
             ConfidenceResponse.model_validate(c) for c in repo.get_confidence_by_research(research_id)
+        ],
+        groundings=[
+            GroundingResponse.model_validate(g) for g in repo.get_groundings_by_research(research_id)
         ],
     )

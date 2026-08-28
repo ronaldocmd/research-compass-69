@@ -15,6 +15,8 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.config import settings
 from app.services.confidence.schemas import ConfidenceLevel
+from app.services.grounding.grounder import ground
+from app.services.grounding.schemas import GroundingResult, GroundingStatus
 from app.services.validation.schemas import ValidationResult, ValidationStatus
 from app.services.planning.schemas import ResearchPlanInput, TaskType
 from app.services.retrieval.retriever import cosine_similarity
@@ -33,6 +35,33 @@ from app.services.workflow.budget_guard import (
 from app.services.workflow.state_manager import WorkflowStateManager
 
 _SELECTION_NAMESPACE = uuid.UUID("8f1c2a3e-4b5d-4e6f-9a7b-0c1d2e3f4a5b")
+
+
+def _grounding_override(
+    grounding: GroundingResult, llm_status: ValidationStatus
+) -> ValidationStatus:
+    """Apply the deterministic grounding gate to a semantic validation result.
+
+    A deterministic grounding failure must not be overridden by a positive LLM
+    answer:
+
+        UNGROUNDED        -> UNSUPPORTED (evidence is not in the source)
+        PARTIALLY_GROUNDED-> PARTIALLY_SUPPORTED (only part is grounded), or
+                             CONTRADICTED when the claim flips the source's
+                             negation (a direct contradiction, not mere absence
+                             of support)
+        UNVERIFIABLE      -> PARTIALLY_SUPPORTED (cannot be verified as HIGH)
+        GROUNDED          -> the LLM result stands
+    """
+    if grounding.status == GroundingStatus.UNGROUNDED:
+        return ValidationStatus.UNSUPPORTED
+    if grounding.status == GroundingStatus.PARTIALLY_GROUNDED:
+        if grounding.negation_flipped:
+            return ValidationStatus.CONTRADICTED
+        return ValidationStatus.PARTIALLY_SUPPORTED
+    if grounding.status == GroundingStatus.UNVERIFIABLE:
+        return ValidationStatus.PARTIALLY_SUPPORTED
+    return llm_status
 
 
 class SynthesisResponse(BaseModel):
@@ -536,18 +565,17 @@ class ResearchNodes:
         validation_results = list(state.validation_results)
         provenance_chains = list(state.provenance_chains)
         scored_claims = list(state.scored_claims)
+        grounding_results = list(state.grounding_results)
 
         for claim in state.claims:
-            evidence = evidence_by_claim.get(claim.claim_id, [])
+            claim_evidence = evidence_by_claim.get(claim.claim_id, [])
             retrieval_scores = {
                 c.chunk_id: c.score
                 for c in chunks_by_id.values()
                 if c.chunk_id in claim.chunk_ids
             }
-            scored_claims.append(
-                self._confidence_scorer.score_claim(claim, evidence, retrieval_scores)
-            )
-            for evidence in evidence:
+            claim_grounding: list[GroundingResult] = []
+            for evidence in claim_evidence:
                 chunk = chunks_by_id.get(evidence.chunk_id) if evidence.chunk_id else None
                 source = None
                 if chunk is not None and self._document_resolver is not None:
@@ -556,6 +584,18 @@ class ResearchNodes:
                     provenance_chains.append(
                         self._provenance_resolver.resolve(claim, evidence, chunk, source)
                     )
+                # RDA-063: deterministic grounding gate. Runs before the
+                # semantic validator and cannot be overridden by it.
+                grounding = ground(
+                    claim.text,
+                    evidence.text,
+                    chunk.text if chunk is not None else None,
+                    claim_id=claim.claim_id,
+                    evidence_id=evidence.evidence_id,
+                )
+                grounding_results.append(grounding)
+                claim_grounding.append(grounding)
+
                 state, result, failed = await self._execute_external(
                     state, WorkflowStage.VALIDATING,
                     asyncio.to_thread, self._validator.validate, claim, evidence,
@@ -580,13 +620,34 @@ class ResearchNodes:
                         )
                     )
                     continue
+                # RDA-063: a deterministic grounding failure overrides the LLM.
+                # UNGROUNDED evidence can never support the claim; PARTIAL or
+                # UNVERIFIABLE evidence caps the result at PARTIALLY_SUPPORTED;
+                # a negation flip is a direct contradiction.
+                final_status = _grounding_override(grounding, result.status)
+                if final_status != result.status:
+                    result = result.model_copy(
+                        update={
+                            "status": final_status,
+                            "reasoning": (
+                                f"{result.reasoning} [grounding: {grounding.reason}]"
+                            ),
+                        }
+                    )
                 validation_results.append(result)
+
+            scored_claims.append(
+                self._confidence_scorer.score_claim(
+                    claim, claim_evidence, retrieval_scores, claim_grounding
+                )
+            )
 
         state = state.model_copy(
             update={
                 "validation_results": validation_results,
                 "provenance_chains": provenance_chains,
                 "scored_claims": scored_claims,
+                "grounding_results": grounding_results,
             }
         )
         if self._evidence_persister is not None:

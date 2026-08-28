@@ -16,6 +16,7 @@ from app.services.orchestration.nodes import ResearchNodes, SynthesisResponse
 from app.services.planning.schemas import PlanTask, ResearchPlan, TaskStatus, TaskType
 from app.services.provenance.schemas import DocumentSource, ProvenanceChain, ProvenanceLink
 from app.services.retrieval.schemas import RetrievedChunk, RetrievalResult
+from app.services.grounding.schemas import GroundingStatus
 from app.services.validation.schemas import ValidationResult, ValidationStatus
 from app.services.workflow.state import ResearchWorkflowState, WorkflowStage
 from app.services.workflow.state_manager import WorkflowStateManager
@@ -451,7 +452,7 @@ class _FakeValidator:
 
 
 class _FakeConfidenceScorer:
-    def score_claim(self, claim, evidence, retrieval_scores=None):
+    def score_claim(self, claim, evidence, retrieval_scores=None, grounding_results=None):
         return ScoredClaim(
             claim=claim, evidence=evidence,
             confidence=ConfidenceScore(
@@ -953,3 +954,101 @@ def test_quality_gate_case5_strongly_supported_summary_allowed() -> None:
     assert state.budget.llm_calls == 1
     assert saved == ["A summary"]
     assert state.synthesis_stats["included"] == 1
+
+
+
+# --- RDA-063: grounding gate in the validation node --------------------------
+
+
+def _validation_state_with_texts(claim_text, evidence_text, chunk_text) -> ResearchWorkflowState:
+    claim = _claim().model_copy(update={"text": claim_text})
+    evidence = _evidence(claim.claim_id).model_copy(update={"text": evidence_text})
+    chunk = RetrievedChunk(
+        chunk_id=evidence.chunk_id, document_id=evidence.document_id,
+        text=chunk_text, page_number=1, section=None, score=0.9,
+        document_title=None,
+    )
+    return _initial(
+        claims=[claim], evidence_items=[evidence], retrieved_chunks=[chunk],
+    )
+
+
+def _grounding_nodes() -> ResearchNodes:
+    return ResearchNodes(
+        validator=_FakeValidator(),
+        provenance_resolver=_FakeProvenanceResolver(),
+        confidence_scorer=_FakeConfidenceScorer(),
+        document_resolver=lambda doc_id, chunk: DocumentSource(
+            document_id=doc_id, title="Doc", url="https://x", doi="10.1/x",
+            page_number=chunk.page_number, chunk_id=chunk.chunk_id,
+        ),
+    )
+
+
+def test_validation_node_grounding_ungrounded_overrides_to_unsupported() -> None:
+    """RDA-063: evidence not present in the chunk is overridden to UNSUPPORTED
+    even when the LLM validator says SUPPORTED."""
+    nodes = _grounding_nodes()
+    state = _validation_state_with_texts(
+        "Production increased by 12%.",
+        "The company declared bankruptcy in 2023.",
+        "Production increased by 12% in 2022.",
+    )
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(state.validation_results) == 1
+    assert state.validation_results[0].status == ValidationStatus.UNSUPPORTED
+    assert len(state.grounding_results) == 1
+    assert state.grounding_results[0].status == GroundingStatus.UNGROUNDED
+
+
+def test_validation_node_grounding_number_mismatch_overrides_to_partial() -> None:
+    """RDA-063: a claim number not in the source is overridden to
+    PARTIALLY_SUPPORTED."""
+    nodes = _grounding_nodes()
+    state = _validation_state_with_texts(
+        "Production increased by 21%.",
+        "Production increased by 21%.",
+        "Production increased by 12%.",
+    )
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(state.validation_results) == 1
+    assert state.validation_results[0].status == ValidationStatus.PARTIALLY_SUPPORTED
+    assert state.grounding_results[0].status == GroundingStatus.PARTIALLY_GROUNDED
+
+
+def test_validation_node_grounding_negation_flip_overrides_to_contradicted() -> None:
+    """RDA-063: a negation flip is a direct contradiction, distinct from mere
+    absence of support."""
+    nodes = _grounding_nodes()
+    state = _validation_state_with_texts(
+        "The study found a significant effect.",
+        "The study found a significant effect.",
+        "The study found no significant effect.",
+    )
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(state.validation_results) == 1
+    assert state.validation_results[0].status == ValidationStatus.CONTRADICTED
+    assert state.grounding_results[0].negation_flipped is True
+
+
+def test_validation_node_grounding_grounded_keeps_llm_status() -> None:
+    """RDA-063: when evidence is grounded and facts are consistent, the LLM
+    result stands (SUPPORTED)."""
+    nodes = _grounding_nodes()
+    state = _validation_state_with_texts(
+        "Production increased by 12%.",
+        "Production increased by 12%.",
+        "Production increased by 12% in 2022.",
+    )
+
+    state = _run(nodes.validation_node, state)
+
+    assert len(state.validation_results) == 1
+    assert state.validation_results[0].status == ValidationStatus.SUPPORTED
+    assert state.grounding_results[0].status == GroundingStatus.GROUNDED

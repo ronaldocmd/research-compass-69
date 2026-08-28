@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.services.confidence.schemas import ConfidenceLevel
 from app.services.evidence.schemas import EvidenceStatus
+from app.services.grounding.schemas import GroundingStatus
 from app.services.validation.schemas import ValidationStatus
 
 
@@ -78,6 +79,22 @@ class ConfidenceResponse(BaseModel):
     scored_at: datetime
 
 
+class GroundingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    grounding_id: uuid.UUID
+    research_id: uuid.UUID
+    claim_id: uuid.UUID
+    evidence_id: uuid.UUID
+    status: GroundingStatus
+    evidence_grounded: bool
+    number_mismatches: list[dict]
+    negation_flipped: bool
+    content_hash: str | None
+    reason: str
+    grounded_at: datetime
+
+
 class EvidenceChainResponse(BaseModel):
     """The full epistemological chain for one research."""
 
@@ -87,3 +104,4 @@ class EvidenceChainResponse(BaseModel):
     validations: list[ValidationResponse]
     provenance: list[ProvenanceResponse]
     confidence: list[ConfidenceResponse]
+    groundings: list[GroundingResponse]
