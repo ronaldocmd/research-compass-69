@@ -1,0 +1,77 @@
+{
+  "A01": [
+    "supported",
+    "supported",
+    "supported"
+  ],
+  "B01": [
+    "supported",
+    "supported",
+    "supported"
+  ],
+  "C01": [
+    "partially_supported",
+    "unsupported",
+    "unsupported"
+  ],
+  "C02": [
+    "partially_supported",
+    "partially_supported",
+    "partially_supported"
+  ],
+  "C05": [
+    "partially_supported",
+    "partially_supported",
+    "ERROR:ValidationError"
+  ],
+  "C07": [
+    "unsupported",
+    "unsupported",
+    "unsupported"
+  ],
+  "D01": [
+    "unsupported",
+    "unsupported",
+    "partially_supported"
+  ],
+  "D04": [
+    "unsupported",
+    "unsupported",
+    "unsupported"
+  ],
+  "E01": [
+    "unsupported",
+    "unsupported",
+    "contradicted"
+  ],
+  "E04": [
+    "contradicted",
+    "contradicted",
+    "contradicted"
+  ],
+  "F02": [
+    "partially_supported",
+    "partially_supported",
+    "partially_supported"
+  ],
+  "G01": [
+    "contradicted",
+    "unsupported",
+    "contradicted"
+  ],
+  "G02": [
+    "contradicted",
+    "ERROR:ValidationError",
+    "contradicted"
+  ],
+  "H01": [
+    "ERROR:ValidationError",
+    "unsupported",
+    "partially_supported"
+  ],
+  "J01": [
+    "unsupported",
+    "ERROR:ValidationError",
+    "unsupported"
+  ]
+}

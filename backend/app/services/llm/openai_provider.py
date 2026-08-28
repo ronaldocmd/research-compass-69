@@ -37,7 +37,9 @@ class OpenAILLMProvider(LLMProvider):
     ) -> None:
         self.model = model if model is not None else settings.LLM_MODEL
         resolved_api_key = api_key if api_key is not None else settings.OPENAI_API_KEY
-        self._client = client or openai.OpenAI(api_key=resolved_api_key)
+        self._client = client or openai.OpenAI(
+            api_key=resolved_api_key, timeout=settings.LLM_TIMEOUT_SECONDS
+        )
         # Optional cost tracking (RDA-050): when a UsageTracker and a
         # research_id are provided, each successful completion is recorded.
         self._usage_tracker = usage_tracker

@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     # evidence/synthesis steps).
     LLM_MODEL: str = "gpt-4o-mini"
 
+    # LLM (RDA-064). Per-request timeout for the OpenAI chat client, in
+    # seconds. Without an explicit timeout the SDK defaults to 600s, so a
+    # hung connection can block a request for 10 minutes. A bounded timeout
+    # lets the caller fail fast and surface the error instead of stalling.
+    LLM_TIMEOUT_SECONDS: float = 60.0
+
     # Synthesis (RDA-061). Minimum confidence level for a claim to be
     # included in the synthesized summary. Claims below this level are
     # excluded so unsupported statements are not presented as verified facts.
