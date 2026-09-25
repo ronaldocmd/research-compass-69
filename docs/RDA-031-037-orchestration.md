@@ -62,19 +62,17 @@ Migration: `alembic/versions/0005_research_plans.py`.
   opcionais; quando `checkpoint_manager` está presente, cada node persiste o
   estado ao final.
 
-> **Dois orquestradores coexistem no código:**
-> - `orchestration/orchestrator.py::ResearchOrchestrator` — usa LangGraph,
->   **é o mecanismo ativo** (referenciado por `api/v1/endpoints/run.py` e
->   pelo benchmark de performance). Mantém estado em memória
->   (`dict[uuid.UUID, ResearchWorkflowState]`) e **não** injeta
->   `checkpoint_manager` por padrão — checkpointing real não está ligado no
->   fluxo de produção atual.
-> - `workflow/orchestrator.py::WorkflowOrchestrator` (RDA-035) — orquestrador
->   mais simples, sem LangGraph, com resume via `CheckpointManager.load_latest`.
->   Não é referenciado por nenhum endpoint HTTP encontrado — parece um
->   protótipo anterior ao LangGraph ou uma via alternativa ainda não
->   conectada. **Recomenda-se confirmar se é código morto/experimental**
->   antes de tratá-lo como o mecanismo de resume em produção.
+O único orquestrador em produção é `orchestration/orchestrator.py::ResearchOrchestrator`
+(LangGraph), referenciado por `api/v1/endpoints/run.py` e pelo benchmark de
+performance. Mantém estado em memória (`dict[uuid.UUID, ResearchWorkflowState]`)
+e **não** injeta `checkpoint_manager` por padrão — checkpointing real não está
+ligado no fluxo de produção atual.
+
+> Um segundo orquestrador experimental (`workflow/orchestrator.py::WorkflowOrchestrator`,
+> RDA-035, sem LangGraph, com resume via `CheckpointManager.load_latest`) existiu
+> neste módulo mas nunca foi conectado a nenhum endpoint HTTP. Foi confirmado
+> como código morto e removido (junto com seu teste dedicado); `CheckpointManager`
+> e `BudgetGuard` continuam em uso pelo `ResearchOrchestrator`/nodes ativos.
 
 ## Checkpoint / resume (RDA-035)
 
