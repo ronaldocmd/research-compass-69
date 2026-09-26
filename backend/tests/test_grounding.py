@@ -94,6 +94,34 @@ def test_negation_flip_is_partially_grounded() -> None:
     assert result.negation_flipped is True
 
 
+def test_affirmative_claim_against_negative_source_is_partial() -> None:
+    result = _ground("There was an increase.", "There was an increase.", "There was no increase.")
+    assert result.status == GroundingStatus.PARTIALLY_GROUNDED
+    assert result.negation_flipped is True
+
+
+def test_negative_claim_against_affirmative_source_is_partial() -> None:
+    result = _ground("There was no increase.", "There was no increase.", "There was an increase.")
+    assert result.status == GroundingStatus.PARTIALLY_GROUNDED
+    assert result.negation_flipped is True
+
+
+def test_negation_is_scoped_to_content_word_in_long_context() -> None:
+    result = _ground(
+        "The second experiment showed an increase.",
+        "The second experiment showed an increase.",
+        "The first experiment showed an increase, but the second experiment showed no increase.",
+    )
+    assert result.status == GroundingStatus.PARTIALLY_GROUNDED
+    assert result.negation_flipped is True
+
+
+def test_same_negative_polarity_remains_grounded() -> None:
+    result = _ground("There was no evidence of fraud.", "There was no evidence of fraud.", "There was no evidence of fraud.")
+    assert result.status == GroundingStatus.GROUNDED
+    assert result.negation_flipped is False
+
+
 def test_no_negation_flip_is_grounded() -> None:
     result = _ground(
         "The study found a significant effect.",

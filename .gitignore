@@ -50,3 +50,7 @@ backend/storage/
 frontend/.next/
 frontend/out/
 next-env.d.ts
+
+# build/cache artifacts
+*.tsbuildinfo
+graphify-out/

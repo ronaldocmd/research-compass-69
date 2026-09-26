@@ -70,8 +70,8 @@ def _grounding_override(
 # prompt-injection attempt and must be excluded from synthesis rather than
 # surfaced as a finding or a "conflict".
 _INJECTION_PATTERNS = (
-    re.compile(r"\bignore\s+(all\s+)?(previous|prior|the)\s+(instructions|prompt|system)", re.I),
-    re.compile(r"\bdisregard\s+(the\s+)?(instructions|prompt|system)", re.I),
+    re.compile(r"\bignore\s+((all|the)\s+)?(previous|prior|the)?\s*(instructions|prompt|system)", re.I),
+    re.compile(r"\bdisregard\s+((all|the|any|previous|prior)\s+)*(instructions|prompt|system)", re.I),
     re.compile(r"\byou\s+are\s+now\s+(a|an|the)\s+", re.I),
     re.compile(r"\bnew\s+instructions\b", re.I),
     re.compile(r"\boutput\s+only\b", re.I),
