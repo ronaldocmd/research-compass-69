@@ -60,3 +60,5 @@ watchfiles==1.2.0
 websockets==15.0.1
 xxhash==4.0.1
 zstandard==0.25.0
+
+fastembed>=0.2.6

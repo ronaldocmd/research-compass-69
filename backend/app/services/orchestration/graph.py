@@ -13,13 +13,19 @@ claim -> evidence -> source -> provenance -> validation chain.
 from langgraph.graph import END, START, StateGraph
 
 from app.services.orchestration.nodes import ResearchNodes
-from app.services.workflow.state import ErrorSeverity, ResearchWorkflowState
+from app.services.workflow.state import (
+    ErrorSeverity,
+    ResearchWorkflowState,
+    WorkflowStage,
+)
 
 
 def route_after_synthesis(state: ResearchWorkflowState) -> str:
     """Decide the terminal stage after synthesis."""
     if state.budget.is_exceeded:
         return "budget_exceeded"
+    if state.current_stage == WorkflowStage.FAILED:
+        return "failed"
     if any(error.severity == ErrorSeverity.PERMANENT for error in state.errors):
         return "failed"
     return "complete"
@@ -27,8 +33,13 @@ def route_after_synthesis(state: ResearchWorkflowState) -> str:
 
 def route_after_node(state: ResearchWorkflowState, next_node: str) -> str:
     """Stop at the budget terminal as soon as a node exhausts the budget."""
-    if state.current_stage.value == "BUDGET_EXCEEDED":
+    if state.current_stage == WorkflowStage.BUDGET_EXCEEDED:
         return "budget_exceeded"
+    # A node that ended FAILED (e.g. planning failed after retries) must stop
+    # the pipeline: continuing would search/extract with no plan and could
+    # even finish as COMPLETED when the recorded error was not PERMANENT.
+    if state.current_stage == WorkflowStage.FAILED:
+        return "failed"
     return next_node
 
 
@@ -50,27 +61,27 @@ def build_graph(nodes: ResearchNodes):
     graph.add_edge(START, "planner")
     graph.add_conditional_edges(
         "planner", lambda state: route_after_node(state, "search"),
-        {"search": "search", "budget_exceeded": "budget_exceeded"},
+        {"search": "search", "budget_exceeded": "budget_exceeded", "failed": "failed"},
     )
     graph.add_conditional_edges(
         "search", lambda state: route_after_node(state, "selection"),
-        {"selection": "selection", "budget_exceeded": "budget_exceeded"},
+        {"selection": "selection", "budget_exceeded": "budget_exceeded", "failed": "failed"},
     )
     graph.add_conditional_edges(
         "selection", lambda state: route_after_node(state, "processing"),
-        {"processing": "processing", "budget_exceeded": "budget_exceeded"},
+        {"processing": "processing", "budget_exceeded": "budget_exceeded", "failed": "failed"},
     )
     graph.add_conditional_edges(
         "processing", lambda state: route_after_node(state, "evidence"),
-        {"evidence": "evidence", "budget_exceeded": "budget_exceeded"},
+        {"evidence": "evidence", "budget_exceeded": "budget_exceeded", "failed": "failed"},
     )
     graph.add_conditional_edges(
         "evidence", lambda state: route_after_node(state, "validation"),
-        {"validation": "validation", "budget_exceeded": "budget_exceeded"},
+        {"validation": "validation", "budget_exceeded": "budget_exceeded", "failed": "failed"},
     )
     graph.add_conditional_edges(
         "validation", lambda state: route_after_node(state, "synthesis"),
-        {"synthesis": "synthesis", "budget_exceeded": "budget_exceeded"},
+        {"synthesis": "synthesis", "budget_exceeded": "budget_exceeded", "failed": "failed"},
     )
     graph.add_conditional_edges(
         "synthesis",

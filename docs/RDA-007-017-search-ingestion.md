@@ -11,6 +11,7 @@ RDA-006 (**API → Service → Repository → Database**).
 | `provider.py`        | `SearchProvider` (ABC): contrato único `search(query, options) -> list[NormalizedSearchResult]` |
 | `openalex.py`        | `OpenAlexSearchProvider` (RDA-012)                                       |
 | `crossref.py`        | `CrossrefSearchProvider` (RDA-013)                                       |
+| `semantic_scholar.py`, `arxiv.py`, `europe_pmc.py`, `core.py`, `unpaywall.py` | Novas fontes e enriquecimento (RDA-066, ver `RDA-066-multi-source-search.md`) |
 | `normalizer.py`      | Normalização pura dos resultados (RDA-015)                               |
 | `deduplicator.py`    | `SearchDeduplicator`, estratégia hierárquica (RDA-016)                   |
 | `search_service.py`  | `SearchService`, orquestra os providers registrados (RDA-014)            |

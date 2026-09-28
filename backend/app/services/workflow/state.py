@@ -104,6 +104,8 @@ class ResearchWorkflowState(BaseModel):
     # question instead of generic task titles.
     research_question: str | None = None
     research_objective: str | None = None
+    # Optional user focus for a deepening round (follow-up on prior results).
+    research_focus: str | None = None
 
     # Search
     search_queries: list[str] = Field(default_factory=list)

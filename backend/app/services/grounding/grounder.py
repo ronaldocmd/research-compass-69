@@ -60,6 +60,25 @@ _STOPWORDS = {
 }
 
 
+_SUFFIXES = ("ations", "ation", "ings", "ing", "ies", "ed", "es", "s", "ção", "ções", "mente")
+
+
+def _coverage_stem(token: str) -> str:
+    """Strip one common inflectional suffix so paraphrases still match.
+
+    Used ONLY for the claim-coverage check: an LLM that paraphrases the source
+    ("increased" vs "increase", "reduces" vs "reduced") must not be penalised
+    as uncovered. Never applied to numbers or negation, and only for tokens
+    long enough that the stem stays discriminative.
+    """
+    if token.isdigit():
+        return token
+    for suffix in _SUFFIXES:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+            return token[: -len(suffix)]
+    return token
+
+
 def evidence_is_grounded(evidence_text: str, chunk_text: str) -> bool:
     """Return True when ``evidence_text`` is drawn from ``chunk_text``.
 
@@ -145,9 +164,9 @@ def ground(
     # must not be treated as fully grounded by a passage that only covers part
     # of it. Only meaningful content tokens count (stopwords excluded).
     claim_tokens = [t for t in tokenize(claim_text) if t not in _STOPWORDS]
-    chunk_tokens = set(tokenize(chunk_text))
+    chunk_tokens = {_coverage_stem(t) for t in tokenize(chunk_text)}
     if claim_tokens:
-        covered = sum(1 for t in claim_tokens if t in chunk_tokens)
+        covered = sum(1 for t in claim_tokens if _coverage_stem(t) in chunk_tokens)
         coverage = covered / len(claim_tokens)
         uncovered = len(claim_tokens) - covered
     else:

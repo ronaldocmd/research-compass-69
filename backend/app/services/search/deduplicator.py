@@ -23,8 +23,18 @@ import re
 from urllib.parse import urlparse
 
 from app.schemas.search import NormalizedSearchResult
+from app.services.search.common import is_pdf_url
 
-DEFAULT_PROVIDER_PREFERENCE = ["openalex", "crossref"]
+# Order decides which record "wins" when duplicates from different providers
+# are merged: sources that tend to carry open-access PDF links come first.
+DEFAULT_PROVIDER_PREFERENCE = [
+    "openalex",
+    "semantic_scholar",
+    "europe_pmc",
+    "core",
+    "arxiv",
+    "crossref",
+]
 
 
 class SearchDeduplicator:
@@ -160,7 +170,10 @@ class SearchDeduplicator:
             if primary.publication_year is not None
             else secondary.publication_year,
             doi=primary.doi or secondary.doi,
-            url=primary.url or secondary.url,
+            # A direct PDF link beats a landing page, whichever provider has it.
+            url=secondary.url
+            if (secondary.url and is_pdf_url(secondary.url) and not is_pdf_url(primary.url))
+            else (primary.url or secondary.url),
             external_id=primary.external_id or secondary.external_id,
             metadata=merged_metadata,
         )

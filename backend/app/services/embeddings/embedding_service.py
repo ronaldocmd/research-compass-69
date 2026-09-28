@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.services.chunking.schemas import Chunk
 from app.services.embeddings.exceptions import EmbeddingError
 from app.services.embeddings.openai_provider import OpenAIEmbeddingProvider
+from app.services.embeddings.fastembed_provider import FastEmbedProvider
 from app.services.embeddings.provider import EmbeddingProvider
 from app.services.embeddings.schemas import EmbeddingResult
 
@@ -28,6 +29,7 @@ class EmbeddingService:
 
     _default_provider_classes: dict[str, type[EmbeddingProvider]] = {
         "openai": OpenAIEmbeddingProvider,
+        "fastembed": FastEmbedProvider,
     }
 
     def __init__(
@@ -36,7 +38,17 @@ class EmbeddingService:
         *,
         batch_size: int | None = None,
     ) -> None:
-        self._provider = provider or self._default_provider_classes[DEFAULT_PROVIDER]()
+        if provider is None:
+            name = (settings.EMBEDDING_PROVIDER or DEFAULT_PROVIDER).lower()
+            try:
+                provider_cls = self._default_provider_classes[name]
+            except KeyError as exc:
+                raise EmbeddingError(
+                    f"Unknown EMBEDDING_PROVIDER {name!r}; expected one of "
+                    f"{sorted(self._default_provider_classes)}"
+                ) from exc
+            provider = provider_cls()
+        self._provider = provider
         self._batch_size = batch_size if batch_size is not None else settings.EMBEDDING_BATCH_SIZE
 
     @property

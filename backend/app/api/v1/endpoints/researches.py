@@ -2,11 +2,15 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.schemas.document import DocumentPublic
+from app.schemas.evidence import ClaimView
 from app.schemas.performance import PerformanceReport
+from app.repositories.document_repository import DocumentRepository
+from app.repositories.evidence_chain_repository import EvidenceChainRepository
 from app.schemas.research import ResearchCreate, ResearchResponse, ResearchUpdate
 from app.schemas.usage import ResearchCostResponse
 from app.services.performance.tracker import PerformanceTracker
@@ -106,3 +110,47 @@ def get_research_performance(
     except ResearchNotFoundError as exc:
         raise _not_found(exc) from exc
     return tracker.get_report(research_id)
+
+
+def _require_research(service: ResearchService, research_id: uuid.UUID) -> None:
+    try:
+        service.get(research_id)
+    except ResearchNotFoundError as exc:
+        raise _not_found(exc) from exc
+
+
+@router.get("/{research_id}/documents", response_model=list[DocumentPublic])
+def get_research_documents(
+    research_id: uuid.UUID,
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    service: ResearchService = Depends(_service),
+    db: Session = Depends(get_db),
+) -> list[DocumentPublic]:
+    """List the documents found for a research (newest first)."""
+    _require_research(service, research_id)
+    docs = DocumentRepository(db).get_by_research_id(
+        research_id, skip=offset, limit=limit
+    )
+    return [DocumentPublic.model_validate(doc) for doc in docs]
+
+
+@router.get("/{research_id}/claims", response_model=list[ClaimView])
+def get_research_claims(
+    research_id: uuid.UUID,
+    response: Response,
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    service: ResearchService = Depends(_service),
+    db: Session = Depends(get_db),
+) -> list[ClaimView]:
+    """List claims with confidence, validation verdict and evidence.
+
+    The total is exposed in the ``X-Total-Count`` header.
+    """
+    _require_research(service, research_id)
+    views, total = EvidenceChainRepository(db).get_claim_views(
+        research_id, limit=limit, offset=offset
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return views

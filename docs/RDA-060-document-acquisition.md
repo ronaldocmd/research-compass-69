@@ -100,7 +100,7 @@ Isso faz o validador aceitar PDFs reais servidos como `application/octet-stream`
 
 ## 6. Problemas remanescentes
 
-- **ALTO — 403 (paywall) e HTML anti-bot:** não corrigíveis programaticamente. Documentos dessas origens continuarão sem gerar chunks. Mitigação futura possível: priorizar fontes OA confiáveis na seleção de documentos (fora do escopo deste ticket).
+- **ALTO — 403 (paywall) e HTML anti-bot:** não corrigíveis programaticamente. Documentos dessas origens continuarão sem gerar chunks. Mitigação futura possível: priorizar fontes OA confiáveis na seleção de documentos (fora do escopo deste ticket; tratada parcialmente no RDA-066 com fontes de PDF aberto e Unpaywall).
 - **MÉDIO — Persistência de claims/evidence:** continuam apenas em memória (fora do escopo).
 
 ---

@@ -28,6 +28,57 @@ class Settings(BaseSettings):
     CROSSREF_EMAIL: str | None = None
     CROSSREF_TIMEOUT_SECONDS: float = 10.0
 
+    # Multi-source search (RDA-066). Comma-separated provider names queried in
+    # parallel by SearchService.search_all; providers that need a key (CORE) are
+    # skipped when it is missing.
+    SEARCH_PROVIDERS: str = "openalex,crossref,semantic_scholar,arxiv,europe_pmc,core"
+
+    # Semantic Scholar (RDA-066). The key is optional; it only raises the rate limit.
+    SEMANTIC_SCHOLAR_BASE_URL: str = "https://api.semanticscholar.org/graph/v1"
+    SEMANTIC_SCHOLAR_API_KEY: str | None = None
+    SEMANTIC_SCHOLAR_TIMEOUT_SECONDS: float = 10.0
+    # Semantic Scholar's published limit is 1 request/second, cumulative
+    # across every endpoint (keyed or not). SearchService fans a research's
+    # queries out to every enabled provider, so without process-wide spacing
+    # here a burst trips 429s and this source silently drops out of that
+    # query's results (error isolation in SearchService.search_all).
+    SEMANTIC_SCHOLAR_MIN_INTERVAL_SECONDS: float = 1.0
+
+    # arXiv (RDA-066). No key. arXiv asks for modest request rates.
+    ARXIV_BASE_URL: str = "https://export.arxiv.org"
+    ARXIV_TIMEOUT_SECONDS: float = 15.0
+    # arXiv's usage policy: at most one request every 3 seconds. Bursts get
+    # refused (HTTP 406/429), so requests are spaced process-wide and a
+    # refused one is retried once after ARXIV_RETRY_DELAY_SECONDS.
+    ARXIV_MIN_INTERVAL_SECONDS: float = 3.0
+    ARXIV_RETRY_DELAY_SECONDS: float = 5.0
+    # Circuit breaker (RDA-067): observed in production that once arXiv
+    # starts refusing requests, a single 5s-delayed retry is often not
+    # enough -- and every one of a research's ~8 SEARCH queries hitting
+    # arXiv again immediately just re-triggers the refusal, so the source
+    # silently contributes zero results for the whole run with no visible
+    # error. After ARXIV_BREAKER_FAILURE_THRESHOLD consecutive failed
+    # .search() calls, stop calling arXiv entirely for
+    # ARXIV_BREAKER_COOLDOWN_SECONDS so the other providers carry the run
+    # and arXiv gets a real chance to recover instead of being hit again
+    # every few seconds.
+    ARXIV_BREAKER_FAILURE_THRESHOLD: int = 3
+    ARXIV_BREAKER_COOLDOWN_SECONDS: float = 300.0
+
+    # Europe PMC (RDA-066). No key.
+    EUROPE_PMC_BASE_URL: str = "https://www.ebi.ac.uk/europepmc/webservices/rest"
+    EUROPE_PMC_TIMEOUT_SECONDS: float = 10.0
+
+    # CORE (RDA-066). Requires a free API key (https://core.ac.uk/services/api).
+    CORE_BASE_URL: str = "https://api.core.ac.uk/v3"
+    CORE_API_KEY: str | None = None
+    CORE_TIMEOUT_SECONDS: float = 10.0
+
+    # Unpaywall enrichment (RDA-066). Requires a contact e-mail; disabled without one.
+    UNPAYWALL_BASE_URL: str = "https://api.unpaywall.org/v2"
+    UNPAYWALL_EMAIL: str | None = None
+    UNPAYWALL_TIMEOUT_SECONDS: float = 8.0
+
     # Document downloader (RDA-018).
     DOWNLOAD_TIMEOUT_SECONDS: float = 30.0
     DOWNLOAD_MAX_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
@@ -46,6 +97,14 @@ class Settings(BaseSettings):
     # Embeddings (RDA-023).
     EMBEDDING_PROVIDER: str = "openai"
     OPENAI_API_KEY: str | None = None
+    # Explicit, not read implicitly from the ambient OPENAI_BASE_URL env var
+    # (RDA-067): that name is commonly set by unrelated tooling in the
+    # shell/host environment, and the OpenAI SDK auto-picks it up when no
+    # base_url is passed, which previously made embeddings silently target
+    # whatever that ambient variable pointed at instead of the configured
+    # local embedding backend -- with the relevance filter then failing
+    # closed (no filtering, not an error) rather than raising.
+    EMBEDDING_BASE_URL: str | None = None
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
     EMBEDDING_BATCH_SIZE: int = 100
@@ -77,6 +136,13 @@ class Settings(BaseSettings):
     # results are not filtered out.
     SELECTION_MIN_SCORE: float = 0.3
 
+    # Pending-document backlog (RDA-067). A single orchestration run only
+    # ever processes max_documents (RDA-034) of what a broad multi-source
+    # search returns; the rest sit as "pending" until explicitly worked off.
+    # This caps how many pending documents one process_pending_documents()
+    # call downloads/extracts, so a single request stays bounded.
+    PENDING_BATCH_DEFAULT_SIZE: int = 25
+
     # Retrieval query strategy (RDA-058). How the evidence node builds the
     # query passed to the retriever. "question" uses the research question
     # alone; "question_description" appends the EXTRACT task description.
@@ -88,6 +154,8 @@ class Settings(BaseSettings):
     # LLM (RDA-025). Completion model used by ClaimExtractor (and later
     # evidence/synthesis steps).
     LLM_MODEL: str = "gpt-4o-mini"
+    LLM_BASE_URL: str | None = None
+    LLM_API_KEY: str | None = None
 
     # LLM (RDA-064). Per-request timeout for the OpenAI chat client, in
     # seconds. Without an explicit timeout the SDK defaults to 600s, so a
@@ -119,11 +187,18 @@ class Settings(BaseSettings):
         "arxiv": 0.0,
         "semantic_scholar": 0.0,
         "pubmed": 0.0,
+        "europe_pmc": 0.0,
+        "core": 0.0,
     }
 
     # Planning (RDA-030). Bounds for the number of tasks a plan may contain.
     PLANNING_MIN_TASKS: int = 3
     PLANNING_MAX_TASKS: int = 10
+
+    @property
+    def search_provider_names(self) -> list[str]:
+        """Enabled search providers, in configured order (RDA-066)."""
+        return [n.strip().lower() for n in self.SEARCH_PROVIDERS.split(",") if n.strip()]
 
     @property
     def cors_origins_list(self) -> list[str]:

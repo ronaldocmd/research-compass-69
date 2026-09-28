@@ -24,6 +24,11 @@ class ResearchPlanInput(BaseModel):
     language: str = "en"
     depth: Literal["basic", "standard", "deep"] = "standard"
     sources: list[str] = Field(default_factory=list)
+    # Follow-up rounds (deepening): what earlier rounds already covered, so
+    # the plan targets NEW material, plus an optional user focus.
+    previous_queries: list[str] = Field(default_factory=list)
+    known_titles: list[str] = Field(default_factory=list)
+    focus: str | None = Field(default=None, max_length=2000)
 
 
 class PlanTask(BaseModel):

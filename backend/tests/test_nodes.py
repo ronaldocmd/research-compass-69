@@ -222,6 +222,61 @@ def test_selection_node_without_question_selects_all() -> None:
     assert state.selection_stats["discarded_irrelevant"] == 0
 
 
+def test_selection_node_prefers_best_score_when_over_capacity() -> None:
+    """RDA-067: when more candidates clear the relevance bar than fit in
+    max_documents, the best-scoring ones must win, not whichever happened to
+    arrive first in the provider-interleaved order."""
+    nodes = ResearchNodes(
+        max_documents=1, embedding_provider=_RelevanceEmbeddingProvider()
+    )
+    results = [
+        # "education" alone -> partial-relevance vector [0.6, 0.8], weaker score.
+        NormalizedSearchResult(source="openalex", title="Education policy", doi="10.1/a"),
+        # "llm" -> top-relevance vector [1.0, 0.0], best score, arrives second.
+        NormalizedSearchResult(source="crossref", title="Large language models", doi="10.2/b"),
+    ]
+    state = _initial(
+        search_results=results, research_question="What is the impact of LLMs on education?"
+    )
+
+    state = _run(nodes.selection_node, state)
+
+    assert len(state.selected_documents) == 1
+    assert state.selected_documents[0] == nodes._result_id(results[1])
+    assert state.selection_stats["deferred_over_capacity"] == 1
+
+
+def test_selection_node_persists_score_via_search_adapter() -> None:
+    """RDA-067: a computed relevance score is handed to the search adapter's
+    ``record_relevance_score(doc_id, score)`` so it can be written onto the
+    Document row (previously the score was computed and thrown away)."""
+
+    class _RecordingSearch:
+        def __init__(self) -> None:
+            self.recorded: list[tuple] = []
+
+        def record_relevance_score(self, doc_id, score) -> None:
+            self.recorded.append((doc_id, score))
+
+    search = _RecordingSearch()
+    nodes = ResearchNodes(
+        search=search, max_documents=10, embedding_provider=_RelevanceEmbeddingProvider()
+    )
+    results = [
+        NormalizedSearchResult(source="openalex", title="LLMs in education", doi="10.1/a"),
+        NormalizedSearchResult(source="openalex", title="A study about gardening", doi="10.2/b"),
+    ]
+    state = _initial(
+        search_results=results, research_question="What is the impact of LLMs on education?"
+    )
+
+    _run(nodes.selection_node, state)
+
+    assert len(search.recorded) == 2
+    recorded_ids = {doc_id for doc_id, _ in search.recorded}
+    assert recorded_ids == {nodes._result_id(results[0]), nodes._result_id(results[1])}
+
+
 # --- processing_node ---------------------------------------------------------
 
 

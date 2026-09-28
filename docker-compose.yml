@@ -34,7 +34,28 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       # Inject the OpenAI-compatible key so the container does not fall back
       # to the placeholder in backend/.env (RDA-056).
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      # host.docker.internal is Docker Desktop's stable name for the host
+      # (RDA-067): a hardcoded gateway IP here silently broke embeddings
+      # (connection refused -> relevance filtering fails closed with no
+      # filtering at all, not an error) whenever that IP drifted. This is
+      # EMBEDDING_BASE_URL (not the more common OPENAI_BASE_URL) precisely
+      # because that generic name is easy to already have set ambiently in
+      # a shell/host environment for unrelated tooling, which would
+      # otherwise silently redirect embeddings there instead.
+      EMBEDDING_BASE_URL: "${EMBEDDING_BASE_URL:-http://host.docker.internal:11434/v1}"
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-openai}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
+      # Multi-source search (RDA-066)
+      SEARCH_PROVIDERS: ${SEARCH_PROVIDERS:-openalex,crossref,semantic_scholar,arxiv,europe_pmc,core}
+      SEMANTIC_SCHOLAR_API_KEY: ${SEMANTIC_SCHOLAR_API_KEY:-}
+      CORE_API_KEY: ${CORE_API_KEY:-}
+      UNPAYWALL_EMAIL: ${UNPAYWALL_EMAIL:-}
+      OPENALEX_EMAIL: ${OPENALEX_EMAIL:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -70,3 +91,9 @@ networks:
 
 volumes:
   postgres_data:
+
+
+
+
+
+

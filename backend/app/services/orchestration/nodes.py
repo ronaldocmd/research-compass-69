@@ -124,6 +124,9 @@ class ResearchNodes:
         confidence_scorer=None,
         document_resolver=None,
         evidence_persister=None,
+        plan_saver=None,
+        history_loader=None,
+        prior_claims_loader=None,
     ) -> None:
         self._planner = planner
         self._search = search
@@ -147,6 +150,14 @@ class ResearchNodes:
         self._confidence_scorer = confidence_scorer
         self._document_resolver = document_resolver
         self._evidence_persister = evidence_persister
+        # Persists the generated plan so GET /plan reflects what was executed.
+        self._plan_saver = plan_saver
+        # Deepening rounds: ``history_loader(research_id)`` returns
+        # (previous_queries, known_titles); ``prior_claims_loader(research_id,
+        # exclude_ids)`` returns [(Claim, ConfidenceLevel)] validated in earlier
+        # rounds so the synthesis covers the whole corpus, not just this round.
+        self._history_loader = history_loader
+        self._prior_claims_loader = prior_claims_loader
         # Performance tracking (RDA-051): when a tracker is provided, each
         # tracked stage records start/end timing around its node.
         self._performance_tracker = performance_tracker
@@ -327,17 +338,36 @@ class ResearchNodes:
                 state, WorkflowStage.PLANNING, "Research not found",
                 severity=ErrorSeverity.PERMANENT,
             )
+        previous_queries: list[str] = []
+        known_titles: list[str] = []
+        if self._history_loader is not None:
+            # History is best-effort: a failure means "treat as a first run".
+            state, history, history_failed = await self._execute_external(
+                state, WorkflowStage.PLANNING, self._history_loader,
+                state.research_id, terminal_on_failure=False,
+            )
+            if not history_failed and history:
+                previous_queries, known_titles = history
         state, plan, failed = await self._execute_external(
             state, WorkflowStage.PLANNING, self._planner.plan,
             ResearchPlanInput(
                 research_id=state.research_id,
                 objective=research.objective,
                 question=research.question,
+                previous_queries=previous_queries,
+                known_titles=known_titles,
+                focus=state.research_focus,
             ),
             budget_operation="llm",
         )
         if failed:
             return state
+        if self._plan_saver is not None:
+            # A persistence failure must not abort an otherwise valid run.
+            state, _, _ = await self._execute_external(
+                state, WorkflowStage.PLANNING, self._plan_saver, plan,
+                terminal_on_failure=False,
+            )
         state = state.model_copy(
             update={
                 "plan_id": plan.plan_id,
@@ -380,6 +410,8 @@ class ResearchNodes:
             "selected": 0,
             "discarded_irrelevant": 0,
             "discarded_duplicate": 0,
+            "scored": 0,
+            "deferred_over_capacity": 0,
         }
 
         # Relevance filter (RDA-058): separate relevance from downloadability.
@@ -391,10 +423,16 @@ class ResearchNodes:
         query_embedding = None
         if self._embedding_provider is not None and state.research_question:
             try:
-                query_embedding = self._embedding_provider.embed(state.research_question)
+                query_embedding = await asyncio.to_thread(
+                    self._embedding_provider.embed, state.research_question
+                )
             except Exception:
                 query_embedding = None
 
+        # De-duplicate first, then score all candidates in one batch (a
+        # sequential embed() per result blocked the event loop and paid one
+        # round trip per document).
+        candidates = []
         for result in state.search_results:
             key = result.doi or (result.title or "").strip().lower() or result.external_id
             if key and key in seen:
@@ -402,32 +440,90 @@ class ResearchNodes:
                 continue
             if key:
                 seen.add(key)
+            candidates.append(result)
 
+        embeddings: list = [None] * len(candidates)
+        texts = [
+            " ".join(part for part in (r.title, r.abstract) if part).strip()
+            for r in candidates
+        ]
+        if query_embedding is not None:
+            embeddings = await asyncio.to_thread(self._embed_texts, texts)
+
+        # Score every candidate first (instead of stopping at the first
+        # max_documents that clear the bar), so the scarce processing budget
+        # goes to the *best* matches rather than whichever arrived first in
+        # the provider-interleaved order (RDA-067). Kept candidates are
+        # sorted by score before the cap is applied; Python's sort is stable,
+        # so unscored candidates (no embedding provider/question, or a
+        # per-item embedding failure) keep their original relative order.
+        kept: list[tuple] = []  # (result, score_or_None)
+        record_score = getattr(self._search, "record_relevance_score", None)
+        for result, text, embedding in zip(candidates, texts, embeddings):
+            score = None
             if query_embedding is not None:
-                text = " ".join(
-                    part for part in (result.title, result.abstract) if part
-                ).strip()
                 if not text:
                     stats["discarded_irrelevant"] += 1
                     continue
-                try:
-                    result_embedding = self._embedding_provider.embed(text)
-                    score = cosine_similarity(query_embedding, result_embedding)
-                except Exception:
-                    score = None
-                if score is not None and score < settings.SELECTION_MIN_SCORE:
-                    stats["discarded_irrelevant"] += 1
-                    continue
+                if embedding is not None:
+                    try:
+                        score = cosine_similarity(query_embedding, embedding)
+                    except Exception:
+                        score = None
+                if score is not None:
+                    stats["scored"] += 1
+                    if record_score is not None:
+                        try:
+                            record_score(self._result_id(result), score)
+                        except Exception:
+                            pass  # persisting the score must never block selection
+                    if score < settings.SELECTION_MIN_SCORE:
+                        stats["discarded_irrelevant"] += 1
+                        continue
+            kept.append((result, score))
 
-            selected_ids.append(self._result_id(result))
+        kept.sort(key=lambda pair: (pair[1] is None, -(pair[1] or 0.0)))
+
+        for result, _score in kept:
             if len(selected_ids) >= self._max_documents:
-                break
+                stats["deferred_over_capacity"] += 1
+                continue
+            selected_ids.append(self._result_id(result))
 
         stats["selected"] = len(selected_ids)
         state = state.model_copy(
             update={"selected_documents": selected_ids, "selection_stats": stats}
         )
         return WorkflowStateManager.transition(state, WorkflowStage.PROCESSING)
+
+    def _embed_texts(self, texts: list[str]) -> list:
+        """Embed ``texts``; entries that cannot be embedded are None.
+
+        Uses the provider's batch endpoint when available and falls back to
+        per-text calls (also when the batch call fails) so one bad input
+        never drops the whole selection.
+        """
+        provider = self._embedding_provider
+        indexed = [(i, t) for i, t in enumerate(texts) if t]
+        out: list = [None] * len(texts)
+        if not indexed:
+            return out
+        embed_batch = getattr(provider, "embed_batch", None)
+        if embed_batch is not None:
+            try:
+                vectors = embed_batch([t for _, t in indexed])
+                if len(vectors) == len(indexed):
+                    for (i, _), vector in zip(indexed, vectors):
+                        out[i] = vector
+                    return out
+            except Exception:
+                pass
+        for i, text in indexed:
+            try:
+                out[i] = provider.embed(text)
+            except Exception:
+                out[i] = None
+        return out
 
     @staticmethod
     def _result_id(result):
@@ -444,6 +540,9 @@ class ResearchNodes:
         with the task description, per RETRIEVAL_QUERY_STRATEGY.
         """
         question = (state.research_question or "").strip()
+        focus = (state.research_focus or "").strip()
+        if focus:
+            question = f"{question} {focus}".strip()
         strategy = settings.RETRIEVAL_QUERY_STRATEGY
         if strategy == "question":
             return question or task.title
@@ -515,10 +614,17 @@ class ResearchNodes:
         evidence_items = list(state.evidence_items)
         retrieved_chunks = list(state.retrieved_chunks)
         seen_chunks = {c.chunk_id for c in retrieved_chunks}
+        # With RETRIEVAL_QUERY_STRATEGY="question" every EXTRACT task maps to
+        # the same query; retrieving and extracting once per distinct query
+        # avoids duplicate claims and N-fold LLM spend.
+        seen_queries: set[str] = set()
         for task in state.tasks:
             if task.task_type != TaskType.EXTRACT:
                 continue
             query = self._retrieval_query(state, task)
+            if query in seen_queries:
+                continue
+            seen_queries.add(query)
             state, retrieval, failed_operation = await self._execute_external(
                 state, WorkflowStage.EXTRACTING, self._retriever.retrieve, query,
                 terminal_on_failure=False,
@@ -594,9 +700,9 @@ class ResearchNodes:
         for claim in state.claims:
             claim_evidence = evidence_by_claim.get(claim.claim_id, [])
             retrieval_scores = {
-                c.chunk_id: c.score
-                for c in chunks_by_id.values()
-                if c.chunk_id in claim.chunk_ids
+                chunk_id: chunks_by_id[chunk_id].score
+                for chunk_id in claim.chunk_ids
+                if chunk_id in chunks_by_id
             }
             claim_grounding: list[GroundingResult] = []
             for evidence in claim_evidence:
@@ -693,7 +799,16 @@ class ResearchNodes:
         # insufficient context. With no claims the previous behaviour produced
         # a summary like "No claims were provided...", which is not a finding.
         # Record a non-fatal warning and complete without fabricating a summary.
-        if not state.claims:
+        prior = []
+        if self._prior_claims_loader is not None:
+            state, loaded, _ = await self._execute_external(
+                state, WorkflowStage.SYNTHESIZING, self._prior_claims_loader,
+                state.research_id, [c.claim_id for c in state.claims],
+                terminal_on_failure=False,
+            )
+            prior = self._at_or_above_threshold(loaded or [])
+
+        if not state.claims and not prior:
             state = self._record_error(
                 state, WorkflowStage.SYNTHESIZING,
                 "Synthesis skipped: no claims were produced (retrieved context "
@@ -718,10 +833,13 @@ class ResearchNodes:
         # are not presented as verified facts. The prompt annotates each
         # included claim with its confidence level.
         supported = self._supported_claims(state)
+        included_new = len(supported)
+        supported = supported + [(claim, level, "n/a") for claim, level in prior]
         stats = {
             "total_claims": len(state.claims),
-            "included": len(supported),
-            "excluded_low_confidence": len(state.claims) - len(supported),
+            "included": included_new,
+            "excluded_low_confidence": len(state.claims) - included_new,
+            "included_from_previous_rounds": len(prior),
         }
         if not supported:
             state = self._record_error(
@@ -759,6 +877,18 @@ class ResearchNodes:
     def _level_rank(level: ConfidenceLevel) -> int:
         """Order confidence levels so HIGH > MEDIUM > LOW."""
         return {ConfidenceLevel.HIGH: 3, ConfidenceLevel.MEDIUM: 2, ConfidenceLevel.LOW: 1}[level]
+
+    def _at_or_above_threshold(self, pairs) -> list[tuple]:
+        """Filter (claim, level) pairs by SYNTHESIS_MIN_CONFIDENCE."""
+        try:
+            min_level = ConfidenceLevel(settings.SYNTHESIS_MIN_CONFIDENCE)
+        except ValueError:
+            min_level = ConfidenceLevel.MEDIUM
+        return [
+            (claim, level)
+            for claim, level in pairs
+            if self._level_rank(level) >= self._level_rank(min_level)
+        ]
 
     def _supported_claims(self, state) -> list[tuple]:
         """Return (claim, confidence_level) pairs at or above the threshold.

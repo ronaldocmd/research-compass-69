@@ -9,7 +9,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.document import Document
+from app.models.document import Document, DocumentStatus
 
 
 class DocumentRepository:
@@ -42,6 +42,27 @@ class DocumentRepository:
             .where(Document.research_id == research_id)
             .order_by(Document.created_at.desc())
             .offset(skip)
+            .limit(limit)
+        )
+        return list(self.db.execute(stmt).scalars())
+
+    def get_pending_by_research(
+        self, research_id: uuid.UUID, *, limit: int = 1000
+    ) -> list[Document]:
+        """Pending documents for ``research_id``, best-fit first (RDA-067).
+
+        Ordered by ``relevance_score`` descending (documents never scored —
+        e.g. a backlog collected before scoring was persisted — sort last,
+        oldest first) so a batch consumer works the most promising documents
+        first instead of arbitrary insertion order.
+        """
+        stmt = (
+            select(Document)
+            .where(
+                Document.research_id == research_id,
+                Document.status == DocumentStatus.PENDING,
+            )
+            .order_by(Document.relevance_score.desc().nullslast(), Document.created_at.asc())
             .limit(limit)
         )
         return list(self.db.execute(stmt).scalars())

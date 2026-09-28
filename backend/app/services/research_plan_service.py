@@ -15,7 +15,7 @@ from app.repositories.plan_task_repository import PlanTaskRepository
 from app.repositories.research_plan_repository import ResearchPlanRepository
 from app.repositories.research_repository import ResearchRepository
 from app.services.planning.planner import ResearchPlanner
-from app.services.planning.schemas import ResearchPlanInput
+from app.services.planning.schemas import ResearchPlan, ResearchPlanInput
 from app.services.research_service import ResearchNotFoundError
 
 
@@ -66,9 +66,17 @@ class ResearchPlanService:
         # bridge with asyncio.run (no event loop is running in this thread).
         plan = asyncio.run(self._planner.plan(plan_input))
 
-        self._plan_repo.delete_by_research_id(research_id)
+        return self.save_plan(plan)
+
+    def save_plan(self, plan: ResearchPlan) -> ResearchPlanRecord:
+        """Persist an already-generated ``plan``, replacing any previous one.
+
+        Used by the workflow's planner node so the plan the orchestrator
+        actually executes is the one exposed by ``GET /plan``.
+        """
+        self._plan_repo.delete_by_research_id(plan.research_id)
         record = self._plan_repo.create(
-            research_id=research_id, status=PlanStatus.CREATED
+            research_id=plan.research_id, status=PlanStatus.CREATED
         )
         tasks_data = [
             {

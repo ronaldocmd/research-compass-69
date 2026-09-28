@@ -32,6 +32,32 @@ from app.services.planning.schemas import (
 )
 
 
+# One corrective retry when the model returns a malformed plan.
+_MAX_LLM_ATTEMPTS = 2
+
+
+def _followup_lines(plan_input: ResearchPlanInput) -> list[str]:
+    """Prompt section for a deepening round (empty on a first run)."""
+    lines: list[str] = []
+    if plan_input.previous_queries or plan_input.known_titles:
+        lines += [
+            "",
+            "This is a FOLLOW-UP round: earlier rounds already collected material.",
+            "Goal: find NEW, complementary sources. Do NOT repeat earlier queries.",
+            "Cover different angles: synonyms, adjacent sub-topics, other regions,",
+            "time periods, methods, and opposing viewpoints.",
+        ]
+        if plan_input.previous_queries:
+            lines.append("Queries already used:")
+            lines += [f"- {q}" for q in plan_input.previous_queries[:30]]
+        if plan_input.known_titles:
+            lines.append("Papers already collected (do not target these again):")
+            lines += [f"- {t}" for t in plan_input.known_titles[:40]]
+    if plan_input.focus:
+        lines += ["", f"User focus for this round: {plan_input.focus}"]
+    return lines
+
+
 def build_planning_prompt(
     plan_input: ResearchPlanInput, *, min_tasks: int, max_tasks: int
 ) -> str:
@@ -51,8 +77,13 @@ def build_planning_prompt(
             f"Return a plan with between {min_tasks} and {max_tasks} prioritized tasks.",
             "Each task must have: title, description, priority (1-5, 1 is highest),",
             "and task_type (one of: SEARCH, PROCESS, EXTRACT, VALIDATE, SYNTHESIZE).",
+            "CRITICAL: If task_type is SEARCH, the 'title' field MUST be exactly the academic database search query string you want to use (e.g. \"rare earth elements\" AND Brazil). Do NOT use descriptive or generic titles like 'Search for literature' for SEARCH tasks.",
             "A deeper depth should produce more, more detailed tasks.",
+            "EVERY task must include all four fields. Respond with JSON shaped like:",
+            '{"tasks": [{"title": "\\"rare earth\\" AND Brazil", "description": "Find papers on ...",'
+            ' "priority": 1, "task_type": "SEARCH"}]}',
         ]
+        + _followup_lines(plan_input)
     )
 
 
@@ -85,14 +116,25 @@ class ResearchPlanner:
             plan_input, min_tasks=self._min_tasks, max_tasks=self._max_tasks
         )
 
-        try:
-            response = await asyncio.to_thread(
-                self._llm.complete, prompt, ResearchPlanResponse
-            )
-        except InvalidLLMResponseError as exc:
-            raise InvalidPlanError(f"LLM returned an invalid plan: {exc}") from exc
-        except LLMProviderError as exc:
-            raise PlanningError(f"Planning failed: {exc}") from exc
+        response = None
+        for attempt in range(_MAX_LLM_ATTEMPTS):
+            try:
+                response = await asyncio.to_thread(
+                    self._llm.complete, prompt, ResearchPlanResponse
+                )
+                break
+            except InvalidLLMResponseError as exc:
+                if attempt + 1 >= _MAX_LLM_ATTEMPTS:
+                    raise InvalidPlanError(f"LLM returned an invalid plan: {exc}") from exc
+                # Malformed structured output (e.g. tasks missing fields) is
+                # usually fixed by telling the model what was wrong.
+                prompt = (
+                    f"{prompt}\n\nYour previous answer was rejected: {str(exc)[:600]}\n"
+                    "Return the complete JSON again; every task needs title, "
+                    "description, priority (1-5) and task_type."
+                )
+            except LLMProviderError as exc:
+                raise PlanningError(f"Planning failed: {exc}") from exc
 
         if not isinstance(response, ResearchPlanResponse):
             raise InvalidPlanError(

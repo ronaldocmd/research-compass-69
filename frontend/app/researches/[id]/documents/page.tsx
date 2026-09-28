@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { ResearchDocumentsView } from "@/components/ResearchDocumentsView";
-import { ApiError, getResearch } from "@/lib/api";
+import { ApiError, getResearch, getResearchDocuments } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,8 @@ export default async function ResearchDocumentsPage({ params }: { params: Promis
   try {
     const research = await getResearch(id);
     // TODO: add a documents API helper when the backend exposes this resource.
-    return <ResearchDocumentsView researchId={research.id} documents={null} />;
+    const documents = await getResearchDocuments(id).catch(e => { if (e instanceof ApiError && e.isNotFound) return null; throw e; });
+    return <ResearchDocumentsView researchId={research.id} documents={documents} />;
   } catch (error) {
     if (error instanceof ApiError && (error.isNotFound || error.isValidation)) notFound();
     throw error;

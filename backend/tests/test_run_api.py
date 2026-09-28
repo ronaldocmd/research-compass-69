@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.v1.endpoints.run import _nodes_factory, _orchestrator
+from app.api.v1.endpoints.run import _nodes_factory, _orchestrator, _services_factory
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
@@ -92,4 +92,46 @@ def test_run_unknown_returns_404(client: TestClient) -> None:
 
 def test_status_unknown_returns_404(client: TestClient) -> None:
     resp = client.get(f"{BASE}/{uuid.uuid4()}/status")
+    assert resp.status_code == 404
+
+
+# --- process-pending (RDA-067) ------------------------------------------------
+
+
+def test_process_pending_returns_stats(client: TestClient) -> None:
+    created = client.post(
+        BASE,
+        json={"title": "t", "objective": "o", "question": "q"},
+    )
+    assert created.status_code == 201, created.text
+    research_id = created.json()["id"]
+
+    class _FakeServices:
+        def __init__(self, calls: list) -> None:
+            self._calls = calls
+
+        def process_pending_documents(self, *, batch_size=None):
+            self._calls.append(batch_size)
+            return {
+                "newly_scored": 3, "selected": 2, "processed": 2,
+                "failed": 0, "remaining_pending": 5,
+            }
+
+    calls: list = []
+    app.dependency_overrides[_services_factory] = lambda: (
+        lambda db, rid: _FakeServices(calls)
+    )
+
+    resp = client.post(f"{BASE}/{research_id}/process-pending", json={"batch_size": 7})
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {
+        "newly_scored": 3, "selected": 2, "processed": 2,
+        "failed": 0, "remaining_pending": 5,
+    }
+    assert calls == [7]
+
+
+def test_process_pending_unknown_research_returns_404(client: TestClient) -> None:
+    resp = client.post(f"{BASE}/{uuid.uuid4()}/process-pending")
     assert resp.status_code == 404

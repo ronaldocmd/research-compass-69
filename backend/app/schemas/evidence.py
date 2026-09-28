@@ -105,3 +105,31 @@ class EvidenceChainResponse(BaseModel):
     provenance: list[ProvenanceResponse]
     confidence: list[ConfidenceResponse]
     groundings: list[GroundingResponse]
+
+
+class ClaimEvidenceView(BaseModel):
+    """Evidence attached to a claim, shaped for the frontend claims page."""
+
+    id: uuid.UUID
+    text: str | None
+    document_id: uuid.UUID | None
+    document_title: str | None
+    page_number: int | None
+
+
+class ClaimView(BaseModel):
+    """A claim with its confidence, validation verdict and evidence.
+
+    ``id`` is the claim's stable UUID (``ClaimRecord.claim_id``), not the
+    integer surrogate key; ``confidence`` is the 0-1 score.
+    """
+
+    id: uuid.UUID
+    text: str
+    confidence: float | None
+    confidence_level: ConfidenceLevel | None
+    validation_status: ValidationStatus | None
+    document_id: uuid.UUID
+    document_title: str | None
+    page_number: int | None
+    evidence: list[ClaimEvidenceView]

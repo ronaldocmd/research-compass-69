@@ -52,7 +52,8 @@ def test_cors_headers_present(client: TestClient) -> None:
 
 def test_openapi_exposes_health_and_research_routes(client: TestClient) -> None:
     """Scope guard: health (RDA-003), Research (RDA-006), planning (RDA-031),
-    orchestration (RDA-033) and human evaluation (RDA-049)."""
+    orchestration (RDA-033), pending-backlog batch (RDA-067) and human
+    evaluation (RDA-049)."""
     paths = client.get("/openapi.json").json()["paths"]
     assert set(paths) == {
         "/health",
@@ -63,11 +64,14 @@ def test_openapi_exposes_health_and_research_routes(client: TestClient) -> None:
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/plan/tasks",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/run",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/status",
+        f"{settings.API_V1_PREFIX}/researches/{{research_id}}/process-pending",
         f"{settings.API_V1_PREFIX}/evaluations",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/evaluations",
         f"{settings.API_V1_PREFIX}/researches/{{research_id}}/evaluation-stats",
             f"{settings.API_V1_PREFIX}/researches/{{research_id}}/cost",
             f"{settings.API_V1_PREFIX}/researches/{{research_id}}/performance",
             f"{settings.API_V1_PREFIX}/researches/{{research_id}}/evidence",
+            f"{settings.API_V1_PREFIX}/researches/{{research_id}}/documents",
+            f"{settings.API_V1_PREFIX}/researches/{{research_id}}/claims",
         }
 

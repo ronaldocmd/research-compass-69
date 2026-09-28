@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.document import DocumentStatus
 
-KNOWN_SOURCES = {"openalex", "crossref"}
+KNOWN_SOURCES = {"openalex", "crossref", "semantic_scholar", "arxiv", "europe_pmc", "core"}
 
 
 class DocumentBase(BaseModel):

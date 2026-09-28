@@ -2,6 +2,8 @@ import type { HealthResponse } from "@/types/health";
 import type { Research, ResearchCreateInput, ResearchUpdateInput } from "@/types/research";
 import type { WorkflowStatus } from "@/types/workflow";
 import type { ResearchPlan } from "@/types/plan";
+import type { ResearchDocument } from "@/types/document";
+import type { ResearchClaim } from "@/types/claim";
 
 /**
  * Base URL of the Research API.
@@ -129,3 +131,23 @@ export function getWorkflowStatus(id: string) {
 export function getResearchPlan(id: string) {
   return request<ResearchPlan>(`/api/v1/researches/${id}/plan`);
 }
+
+export function startResearch(id: string, focus?: string) {
+  const trimmed = focus?.trim();
+  return request<WorkflowStatus>(`/api/v1/researches/${id}/run`, {
+    method: "POST",
+    ...(trimmed
+      ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ focus: trimmed }) }
+      : {}),
+  });
+}
+
+
+export function getResearchDocuments(id: string) {
+  return request<ResearchDocument[]>(`/api/v1/researches/${id}/documents`);
+}
+
+export function getResearchClaims(id: string) {
+  return request<ResearchClaim[]>(`/api/v1/researches/${id}/claims`);
+}
+

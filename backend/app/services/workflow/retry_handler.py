@@ -84,7 +84,12 @@ class RetryHandler:
         for attempt in range(active_policy.max_attempts):
             self.last_attempts = attempt + 1
             try:
-                result = func(*args, **kwargs)
+                if inspect.iscoroutinefunction(func):
+                    return await func(*args, **kwargs)
+                # Blocking callables (HTTP search, PDF download/extraction,
+                # embeddings, sync LLM calls, DB) run in a worker thread so
+                # they do not freeze the event loop (status/health endpoints).
+                result = await asyncio.to_thread(func, *args, **kwargs)
                 return await result if inspect.isawaitable(result) else result
             except Exception as exception:
                 severity = self.classify_error(exception)

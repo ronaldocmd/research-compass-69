@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { ApiError, getWorkflowStatus } from "@/lib/api";
+import { ApiError, getWorkflowStatus, startResearch } from "@/lib/api";
 import type { Research } from "@/types/research";
 import type { WorkflowStatus } from "@/types/workflow";
 
@@ -33,6 +33,20 @@ function statusLabel(status: string): string {
 export function ResearchLiveDashboard({ research, initialWorkflow }: Props) {
   const [workflow, setWorkflow] = useState<WorkflowStatus | null>(initialWorkflow);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [focus, setFocus] = useState("");
+
+  const handleStart = async () => {
+    setStarting(true);
+    try {
+      setWorkflow(await startResearch(research.id, focus));
+      setRefreshError(null);
+    } catch (error) {
+      alert("Erro ao iniciar a pesquisa.");
+    } finally {
+      setStarting(false);
+    }
+  };
 
   useEffect(() => {
     const refresh = async () => {
@@ -63,9 +77,30 @@ export function ResearchLiveDashboard({ research, initialWorkflow }: Props) {
           <h1>{research.title}</h1>
           <p className="dashboard-question">{research.question}</p>
         </div>
-        <span className={`workflow-status ${statusLabel(stage)}`}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          {(isTerminal || stage === "DRAFT" || stage === "IDLE" || stage === "READY") && (
+            <>
+              {isTerminal && (
+                <input
+                  type="text"
+                  value={focus}
+                  onChange={(e) => setFocus(e.target.value)}
+                  placeholder="Foco opcional (ex.: impacto ambiental)"
+                  maxLength={1000}
+                  disabled={starting}
+                  aria-label="Foco da nova rodada"
+                  style={{ minWidth: "18rem" }}
+                />
+              )}
+              <button className="btn primary" onClick={handleStart} disabled={starting}>
+                {starting ? "Executando..." : isTerminal ? "↻ Aprofundar pesquisa" : "▶ Iniciar Pesquisa"}
+              </button>
+            </>
+          )}
+          <span className={`workflow-status ${statusLabel(stage)}`}>
           <span className="status-dot" />{statusLabel(stage)}
         </span>
+        </div>
       </header>
 
       <section className="dashboard-intro">
@@ -119,3 +154,4 @@ export function ResearchLiveDashboard({ research, initialWorkflow }: Props) {
 function Metric({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong>{detail ? <small>{detail}</small> : null}</div>;
 }
+

@@ -8,7 +8,7 @@ Only this layer touches the database; the Service layer depends on it.
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.evidence_chain import (
@@ -19,6 +19,9 @@ from app.models.evidence_chain import (
     ProvenanceRecord,
     ValidationRecord,
 )
+from app.models.document import Document
+from app.schemas.evidence import ClaimEvidenceView, ClaimView
+from app.services.validation.schemas import ValidationStatus
 from app.services.workflow.state import ResearchWorkflowState
 
 
@@ -232,3 +235,111 @@ class EvidenceChainRepository:
                 .order_by(GroundingRecord.created_at.asc())
             )
         )
+
+    # A claim is a finding when at least one evidence was validated SUPPORTED
+    # (same gate as the synthesis node); otherwise report the strongest
+    # negative signal so the UI never shows an unverified claim as verified.
+    _STATUS_PRECEDENCE = (
+        ValidationStatus.SUPPORTED,
+        ValidationStatus.CONTRADICTED,
+        ValidationStatus.PARTIALLY_SUPPORTED,
+        ValidationStatus.UNSUPPORTED,
+    )
+
+    def get_claim_views(
+        self, research_id: uuid.UUID, *, limit: int = 200, offset: int = 0
+    ) -> tuple[list[ClaimView], int]:
+        """Return a page of claims with confidence, validation and evidence.
+
+        Runs a fixed number of queries (claims, evidence, validations,
+        confidence, document titles) regardless of how many claims exist, so
+        the endpoint does not suffer the N+1 pattern of lazy per-claim loads.
+        Returns ``(views, total_claims)``.
+        """
+        total = (
+            self.db.scalar(
+                select(func.count())
+                .select_from(ClaimRecord)
+                .where(ClaimRecord.research_id == research_id)
+            )
+            or 0
+        )
+        claims = list(
+            self.db.scalars(
+                select(ClaimRecord)
+                .where(ClaimRecord.research_id == research_id)
+                .order_by(ClaimRecord.created_at.asc(), ClaimRecord.id.asc())
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        if not claims:
+            return [], total
+        claim_ids = [c.claim_id for c in claims]
+
+        evidence_by_claim: dict[uuid.UUID, list[EvidenceRecord]] = {}
+        for record in self.db.scalars(
+            select(EvidenceRecord)
+            .where(EvidenceRecord.claim_id.in_(claim_ids))
+            .order_by(EvidenceRecord.created_at.asc(), EvidenceRecord.id.asc())
+        ):
+            evidence_by_claim.setdefault(record.claim_id, []).append(record)
+
+        statuses_by_claim: dict[uuid.UUID, set[ValidationStatus]] = {}
+        for claim_id, status in self.db.execute(
+            select(ValidationRecord.claim_id, ValidationRecord.status).where(
+                ValidationRecord.claim_id.in_(claim_ids)
+            )
+        ):
+            statuses_by_claim.setdefault(claim_id, set()).add(status)
+
+        confidence_by_claim = {
+            row.claim_id: row
+            for row in self.db.scalars(
+                select(ConfidenceRecord)
+                .where(ConfidenceRecord.claim_id.in_(claim_ids))
+                .order_by(ConfidenceRecord.created_at.asc(), ConfidenceRecord.id.asc())
+            )
+        }
+
+        document_ids = {c.document_id for c in claims} | {
+            e.document_id
+            for records in evidence_by_claim.values()
+            for e in records
+            if e.document_id is not None
+        }
+        titles = dict(
+            self.db.execute(
+                select(Document.id, Document.title).where(Document.id.in_(document_ids))
+            ).all()
+        )
+
+        views = []
+        for claim in claims:
+            confidence = confidence_by_claim.get(claim.claim_id)
+            statuses = statuses_by_claim.get(claim.claim_id, set())
+            views.append(
+                ClaimView(
+                    id=claim.claim_id,
+                    text=claim.text,
+                    confidence=confidence.score if confidence else None,
+                    confidence_level=confidence.level if confidence else None,
+                    validation_status=next(
+                        (s for s in self._STATUS_PRECEDENCE if s in statuses), None
+                    ),
+                    document_id=claim.document_id,
+                    document_title=titles.get(claim.document_id),
+                    page_number=claim.page_number,
+                    evidence=[
+                        ClaimEvidenceView(
+                            id=e.evidence_id,
+                            text=e.text,
+                            document_id=e.document_id,
+                            document_title=titles.get(e.document_id),
+                            page_number=e.page_number,
+                        )
+                        for e in evidence_by_claim.get(claim.claim_id, [])
+                    ],
+                )
+            )
+        return views, total
